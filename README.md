@@ -4,14 +4,14 @@ L-email 系统是一个面向实训交付的邮件平台，包含以下模块：
 
 - `vue-mail-front`：Vue 3 前端
 - `mail-system-backend`：Spring Boot 后端
-- `email-spam`：Python 垃圾邮件检测服务
+- `email-spam`：垃圾邮件模型训练工具目录
 - `docs`：启动说明、专题文档与答辩材料索引
 
 ## 文档导航
 
 - [前端说明](./vue-mail-front/README.md)
 - [后端说明](./mail-system-backend/README.md)
-- [垃圾邮件服务说明](./email-spam/README.md)
+- [垃圾邮件模型说明](./email-spam/README.md)
 - [文档索引](./docs/README.md)
 
 ## 系统能力
@@ -26,11 +26,10 @@ L-email 系统是一个面向实训交付的邮件平台，包含以下模块：
 ## 快速启动顺序
 
 1. 启动 MySQL，并准备 `mail_system` 数据库
-2. 启动 `email-spam` Python 服务
-3. 启动 `mail-system-backend`
-4. 启动 `vue-mail-front`
+2. 启动 `mail-system-backend`
+3. 启动 `vue-mail-front`
 
-详细步骤见各子模块 `README`。
+> 垃圾邮件检测现在由后端内置模型插件完成，运行时不再需要单独启动 Python 服务。
 
 ## 演示账号
 
@@ -46,4 +45,4 @@ L-email 系统是一个面向实训交付的邮件平台，包含以下模块：
 当前对外展示名称统一为 **L-email 系统**。
 
 - 前端标题、欢迎页、README、答辩文档统一使用 `L-email 系统`
-- 后端包名、`artifactId`、数据库前缀等内部技术名称暂不修改，避免影响现有代码与配置
+- 后端包名、artifactId、数据库前缀等内部技术名暂不修改，避免影响现有代码与配置

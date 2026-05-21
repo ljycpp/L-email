@@ -6,12 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SpamDetectorProperties {
 
     private boolean enabled = true;
-    private String baseUrl = "http://127.0.0.1:8000";
-    private String username = "admin";
-    private String password = "admin123";
-    private int connectTimeoutMs = 3000;
-    private int readTimeoutMs = 10000;
+    private String modelPath = "classpath:spam_model.json";
     private double spamThreshold = 0.5;
+    private int topReasonCount = 5;
 
     public boolean isEnabled() {
         return enabled;
@@ -21,44 +18,12 @@ public class SpamDetectorProperties {
         this.enabled = enabled;
     }
 
-    public String getBaseUrl() {
-        return baseUrl;
+    public String getModelPath() {
+        return modelPath;
     }
 
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public int getConnectTimeoutMs() {
-        return connectTimeoutMs;
-    }
-
-    public void setConnectTimeoutMs(int connectTimeoutMs) {
-        this.connectTimeoutMs = connectTimeoutMs;
-    }
-
-    public int getReadTimeoutMs() {
-        return readTimeoutMs;
-    }
-
-    public void setReadTimeoutMs(int readTimeoutMs) {
-        this.readTimeoutMs = readTimeoutMs;
+    public void setModelPath(String modelPath) {
+        this.modelPath = modelPath;
     }
 
     public double getSpamThreshold() {
@@ -67,5 +32,13 @@ public class SpamDetectorProperties {
 
     public void setSpamThreshold(double spamThreshold) {
         this.spamThreshold = spamThreshold;
+    }
+
+    public int getTopReasonCount() {
+        return topReasonCount;
+    }
+
+    public void setTopReasonCount(int topReasonCount) {
+        this.topReasonCount = topReasonCount;
     }
 }

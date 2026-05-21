@@ -5,10 +5,10 @@ import com.practice.mailsystem.common.exception.BusinessException;
 import com.practice.mailsystem.mail.entity.MailMessage;
 import com.practice.mailsystem.mail.entity.MailUserBox;
 import com.practice.mailsystem.mail.mapper.MailUserBoxMapper;
-import com.practice.mailsystem.spam.client.SpamDetectorClient;
 import com.practice.mailsystem.spam.client.SpamPredictResult;
 import com.practice.mailsystem.spam.config.SpamDetectorProperties;
 import com.practice.mailsystem.spam.dto.SpamAutoFilterStatusVO;
+import com.practice.mailsystem.spam.plugin.SpamDetectionPlugin;
 import com.practice.mailsystem.user.entity.SysUser;
 import com.practice.mailsystem.user.mapper.SysUserMapper;
 import com.practice.mailsystem.websocket.MailNotificationService;
@@ -27,18 +27,18 @@ public class SpamAutoFilterService {
 
     private final SysUserMapper userMapper;
     private final MailUserBoxMapper mailUserBoxMapper;
-    private final SpamDetectorClient spamDetectorClient;
+    private final SpamDetectionPlugin spamDetectionPlugin;
     private final SpamDetectorProperties properties;
     private final MailNotificationService mailNotificationService;
 
     public SpamAutoFilterService(SysUserMapper userMapper,
                                  MailUserBoxMapper mailUserBoxMapper,
-                                 SpamDetectorClient spamDetectorClient,
+                                 SpamDetectionPlugin spamDetectionPlugin,
                                  SpamDetectorProperties properties,
                                  MailNotificationService mailNotificationService) {
         this.userMapper = userMapper;
         this.mailUserBoxMapper = mailUserBoxMapper;
-        this.spamDetectorClient = spamDetectorClient;
+        this.spamDetectionPlugin = spamDetectionPlugin;
         this.properties = properties;
         this.mailNotificationService = mailNotificationService;
     }
@@ -56,15 +56,16 @@ public class SpamAutoFilterService {
             throw new BusinessException(404, "用户不存在");
         }
         try {
-            spamDetectorClient.testConnection();
+            spamDetectionPlugin.testConnection();
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
             String detail = ex.getMessage() == null ? "" : ex.getMessage();
-            throw new BusinessException(502,
-                    "无法连接垃圾邮件检测服务。请确认：① email-spam 已运行（python web_app.py --port 8000）；"
-                            + "② 已重新编译并重启 Java 后端；③ application.yml 账号为 admin/admin123。"
-                            + (detail.isBlank() ? "" : " 详情：" + detail));
+            throw new BusinessException(
+                    502,
+                    "无法加载垃圾邮件检测插件，请确认内置模型文件和后端配置可用。"
+                            + (detail.isBlank() ? "" : " 详情: " + detail)
+            );
         }
         user.setAutoSpamFilter(1);
         user.setUpdatedAt(LocalDateTime.now());
@@ -94,13 +95,13 @@ public class SpamAutoFilterService {
         if (!isAutoFilterEnabled(ownerUserId)) {
             return false;
         }
-        if (!BOX_INBOX.equals(inboxBox.getBoxType()) || inboxBox.getSpamFlag() != null && inboxBox.getSpamFlag() == 1) {
+        if (!BOX_INBOX.equals(inboxBox.getBoxType()) || (inboxBox.getSpamFlag() != null && inboxBox.getSpamFlag() == 1)) {
             return false;
         }
 
         String subject = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "";
         String body = resolveBodyText(message);
-        Optional<SpamPredictResult> optional = spamDetectorClient.predict(subject, body);
+        Optional<SpamPredictResult> optional = spamDetectionPlugin.predict(subject, body);
         if (optional.isEmpty()) {
             return false;
         }
@@ -145,13 +146,17 @@ public class SpamAutoFilterService {
         if (safeSubject.length() > 50) {
             safeSubject = safeSubject.substring(0, 50) + "...";
         }
+        String extraReasons = result.reasonTokens() == null || result.reasonTokens().isEmpty()
+                ? ""
+                : "；主要依据：" + String.join("、", result.reasonTokens());
         return String.format(
                 Locale.CHINA,
-                "系统判定为垃圾邮件（置信度 %.1f%%）。spam 概率 %.1f%%，ham 概率 %.1f%%。主题：%s",
+                "系统判定为垃圾邮件（置信度 %.1f%%）。spam 概率 %.1f%%，ham 概率 %.1f%%。主题：%s%s",
                 result.confidence() * 100,
                 result.spamScore() * 100,
                 result.hamScore() * 100,
-                safeSubject.isEmpty() ? "（无主题）" : safeSubject
+                safeSubject.isEmpty() ? "（无主题）" : safeSubject,
+                extraReasons
         );
     }
 

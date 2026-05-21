@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <el-drawer
     v-model="drawerVisible"
     direction="rtl"
@@ -11,12 +11,12 @@
       <header class="assistant-header">
         <div>
           <div class="assistant-eyebrow">{{ MAIL_SYSTEM_NAME }}</div>
-          <h3>鏅鸿兘鍔╂墜</h3>
-          <p class="assistant-subtitle">鍙褰撳墠閭欢杩涜鎽樿銆佸緟鍔炴彁鍙栧拰鍥炲寤鸿銆?/p>
+          <h3>智能助手</h3>
+          <p class="assistant-subtitle">可对当前邮件生成摘要、提取待办并提供回复建议。</p>
         </div>
         <div class="header-actions">
-          <el-button text @click="goSettings">璁剧疆</el-button>
-          <el-button text @click="resetConversation">娓呯┖</el-button>
+          <el-button text @click="goSettings">设置</el-button>
+          <el-button text @click="resetConversation">清空</el-button>
         </div>
       </header>
 
@@ -27,8 +27,8 @@
         @dragleave.prevent="dragActive = false"
         @drop.prevent="handleMailDrop"
       >
-        <div class="context-label">褰撳墠閭欢</div>
-        <div class="context-title">{{ currentMail.title || '鏈€夋嫨閭欢' }}</div>
+        <div class="context-label">当前邮件</div>
+        <div class="context-title">{{ currentMail.title || '未选择邮件' }}</div>
         <div v-if="currentMail.sender || currentMail.senderMail" class="context-meta">
           {{ currentMail.sender || currentMail.senderMail }}
           <span v-if="currentMail.senderMail && currentMail.sender !== currentMail.senderMail">
@@ -37,11 +37,11 @@
         </div>
         <div class="context-status">
           <el-tag size="small" :type="configured ? 'success' : 'warning'">
-            {{ configured ? '宸查厤缃? : '寰呴厤缃? }}
+            {{ configured ? '已配置' : '待配置' }}
           </el-tag>
-          <el-tag v-if="currentMail.id" size="small" type="info">閭欢 #{{ currentMail.id }}</el-tag>
+          <el-tag v-if="currentMail.id" size="small" type="info">邮件 #{{ currentMail.id }}</el-tag>
         </div>
-        <div class="drop-tip">鍙皢閭欢鍒楄〃涓殑閭欢鎷栧埌姝ゅ锛屽揩閫熷垏鎹㈠垎鏋愬璞°€?/div>
+        <div class="drop-tip">可将邮件列表中的邮件拖到此处，快速切换分析对象。</div>
       </section>
 
       <el-alert
@@ -54,9 +54,9 @@
 
       <section v-if="recentResults.length" class="history-card">
         <div class="history-header">
-          <span>鏈偖浠舵渶杩戠粨鏋?/span>
+          <span>本邮件最近结果</span>
           <el-button text size="small" @click="showHistory = !showHistory">
-            {{ showHistory ? '鏀惰捣' : '灞曞紑' }}
+            {{ showHistory ? '收起' : '展开' }}
           </el-button>
         </div>
         <div v-if="showHistory" class="history-list">
@@ -88,13 +88,15 @@
                 >
                   <div class="suggestion-text">{{ item }}</div>
                   <div class="suggestion-actions">
-                    <el-button size="small" text @click="copySuggestion(item)">澶嶅埗</el-button>
+                    <el-button size="small" text @click="copySuggestion(item)">复制</el-button>
                     <el-button size="small" text type="primary" @click="insertSuggestion(item)">
-                      鎻掑叆鍐欎俊椤?                    </el-button>
+                      插入写信页
+                    </el-button>
                   </div>
                 </div>
               </div>
             </template>
+
             <template v-else-if="message.kind === 'action-items'">
               <div class="message-text">{{ message.content }}</div>
               <div class="task-list">
@@ -108,17 +110,19 @@
                     <span>{{ item.task }}</span>
                   </div>
                   <div class="task-meta">
-                    <span><strong>鎴鏃堕棿锛?/strong>{{ item.deadline || '鏈寚瀹? }}</span>
-                    <span><strong>鍏抽敭鑱旂郴浜猴細</strong>{{ formatContacts(item.contacts) }}</span>
+                    <span><strong>截止时间：</strong>{{ item.deadline || '未指定' }}</span>
+                    <span><strong>关键联系人：</strong>{{ formatContacts(item.contacts) }}</span>
                   </div>
                 </div>
               </div>
             </template>
+
             <template v-else>
               <div class="message-text">{{ message.content }}</div>
             </template>
           </div>
         </div>
+
         <div v-if="loading" class="message-row is-assistant">
           <div class="message-bubble is-loading">
             <span class="typing-dot" />
@@ -130,15 +134,15 @@
 
       <div class="assistant-controls">
         <el-select v-model="replyTone" size="small" class="tone-select" :disabled="loading">
-          <el-option label="姝ｅ紡" value="formal" />
-          <el-option label="绠€娲? value="brief" />
-          <el-option label="绀艰矊" value="polite" />
-          <el-option label="鍙嬪ソ" value="friendly" />
+          <el-option label="正式" value="formal" />
+          <el-option label="简洁" value="brief" />
+          <el-option label="礼貌" value="polite" />
+          <el-option label="友好" value="friendly" />
         </el-select>
         <div class="quick-actions">
-          <el-button :disabled="!canRun" @click="runSummary">鐢熸垚鎽樿</el-button>
-          <el-button :disabled="!canRun" @click="runActionItems">鎻愬彇寰呭姙</el-button>
-          <el-button :disabled="!canRun" @click="runReplySuggestions">鍥炲寤鸿</el-button>
+          <el-button :disabled="!canRun" @click="runSummary">生成摘要</el-button>
+          <el-button :disabled="!canRun" @click="runActionItems">提取待办</el-button>
+          <el-button :disabled="!canRun" @click="runReplySuggestions">回复建议</el-button>
         </div>
       </div>
 
@@ -148,12 +152,12 @@
           type="textarea"
           :rows="3"
           resize="none"
-          placeholder="渚嬪锛氭€荤粨杩欏皝閭欢 / 鎻愬彇寰呭姙 / 缁欐垜涓€鐗堢ぜ璨屽洖澶?
+          placeholder="例如：总结这封邮件 / 提取待办 / 给我一版礼貌回复"
           @keyup.ctrl.enter="submitPrompt"
         />
         <div class="composer-actions">
-          <span class="composer-tip">Ctrl + Enter 鍙戦€?/span>
-          <el-button type="primary" :disabled="!currentMail.id || loading" @click="submitPrompt">鍙戦€?/el-button>
+          <span class="composer-tip">Ctrl + Enter 发送</span>
+          <el-button type="primary" :disabled="!currentMail.id || loading" @click="submitPrompt">发送</el-button>
         </div>
       </div>
     </div>
@@ -209,7 +213,9 @@ watch(
   async () => {
     await nextTick();
     const element = messageContainerRef.value;
-    if (element) element.scrollTop = element.scrollHeight;
+    if (element) {
+      element.scrollTop = element.scrollHeight;
+    }
   },
   { deep: true }
 );
@@ -253,8 +259,8 @@ function resetConversation() {
     createMessage(
       'assistant',
       currentMail.value.id
-        ? `宸茶繛鎺ュ埌鈥?{currentMail.value.title || '鏈懡鍚嶉偖浠?}鈥濄€傛垜鍙互涓轰綘鐢熸垚鎽樿銆佹彁鍙栧緟鍔炴垨鎻愪緵鍥炲寤鸿銆俙
-        : '璇峰厛閫夋嫨涓€灏侀偖浠讹紝鍐嶆墦寮€鏅鸿兘鍔╂墜銆?
+        ? `已连接到“${currentMail.value.title || '未命名邮件'}”。我可以为你生成摘要、提取待办或提供回复建议。`
+        : '请先选择一封邮件，再打开智能助手。'
     )
   ];
   draftPrompt.value = '';
@@ -266,7 +272,7 @@ function rememberHistory(kind, preview) {
 
 async function runSummary(includePrompt = true) {
   if (!ensureReady()) return;
-  if (includePrompt) messages.value.push(createMessage('user', '璇锋€荤粨杩欏皝閭欢銆?));
+  if (includePrompt) messages.value.push(createMessage('user', '请总结这封邮件。'));
   loading.value = true;
   try {
     const cached = getAiResultCache('summary', currentMail.value.id);
@@ -277,11 +283,11 @@ async function runSummary(includePrompt = true) {
     }
     const { data } = await aiMailApi.summarize(currentMail.value.id);
     setAiResultCache('summary', currentMail.value.id, data);
-    const content = data.summary || '鏈繑鍥炴憳瑕佸唴瀹广€?;
+    const content = data.summary || '未返回摘要内容。';
     messages.value.push(createMessage('assistant', content));
     rememberHistory('summary', content);
   } catch (err) {
-    messages.value.push(createMessage('assistant', normalizeAiError(err, '鎽樿')));
+    messages.value.push(createMessage('assistant', normalizeAiError(err, '摘要')));
   } finally {
     loading.value = false;
   }
@@ -289,43 +295,62 @@ async function runSummary(includePrompt = true) {
 
 async function runActionItems(includePrompt = true) {
   if (!ensureReady()) return;
-  if (includePrompt) messages.value.push(createMessage('user', '璇锋彁鍙栧緟鍔炪€佹埅姝㈡椂闂村拰鍏抽敭鑱旂郴浜恒€?));
+  if (includePrompt) messages.value.push(createMessage('user', '请提取待办、截止时间和关键联系人。'));
   loading.value = true;
   try {
     const cached = getAiResultCache('action-items', currentMail.value.id);
     if (cached?.items?.length) {
-      messages.value.push(createMessage('assistant', '杩欐槸鎴戞彁鍙栧埌鐨勫緟鍔炰簨椤癸細', 'action-items', { items: cached.items || [] }));
-      rememberHistory('action-items', `鎻愬彇鍒?${cached.items.length} 鏉″緟鍔炰簨椤广€俙);
+      messages.value.push(createMessage('assistant', '这是我提取到的待办事项：', 'action-items', { items: cached.items || [] }));
+      rememberHistory('action-items', `提取到 ${cached.items.length} 条待办事项。`);
       return;
     }
     const { data } = await aiMailApi.extractActionItems(currentMail.value.id);
     setAiResultCache('action-items', currentMail.value.id, data);
-    messages.value.push(createMessage('assistant', '杩欐槸鎴戞彁鍙栧埌鐨勫緟鍔炰簨椤癸細', 'action-items', { items: data.items || [] }));
-    rememberHistory('action-items', `鎻愬彇鍒?${(data.items || []).length} 鏉″緟鍔炰簨椤广€俙);
+    messages.value.push(createMessage('assistant', '这是我提取到的待办事项：', 'action-items', { items: data.items || [] }));
+    rememberHistory('action-items', `提取到 ${(data.items || []).length} 条待办事项。`);
   } catch (err) {
-    messages.value.push(createMessage('assistant', normalizeAiError(err, '寰呭姙鎻愬彇')));
+    messages.value.push(createMessage('assistant', normalizeAiError(err, '待办提取')));
   } finally {
     loading.value = false;
   }
 }
 
+function toneLabel(value) {
+  return (
+    {
+      formal: '正式',
+      brief: '简洁',
+      polite: '礼貌',
+      friendly: '友好'
+    }[value] || value
+  );
+}
+
 async function runReplySuggestions(includePrompt = true) {
   if (!ensureReady()) return;
-  if (includePrompt) messages.value.push(createMessage('user', `璇风粰鎴?${replyTone.value} 椋庢牸鐨勫洖澶嶅缓璁€俙));
+  if (includePrompt) messages.value.push(createMessage('user', `请给我 ${toneLabel(replyTone.value)} 风格的回复建议。`));
   loading.value = true;
   try {
     const cached = getAiResultCache('reply', currentMail.value.id, replyTone.value);
     if (cached?.suggestions?.length) {
-      messages.value.push(createMessage('assistant', `浠ヤ笅鏄?${replyTone.value} 椋庢牸鐨勫洖澶嶅缓璁細`, 'suggestions', { suggestions: cached.suggestions || [] }));
-      rememberHistory('reply', `${replyTone.value} 椋庢牸鍥炲寤鸿宸茬敓鎴愩€俙);
+      messages.value.push(
+        createMessage('assistant', `以下是 ${toneLabel(replyTone.value)} 风格的回复建议：`, 'suggestions', {
+          suggestions: cached.suggestions || []
+        })
+      );
+      rememberHistory('reply', `${toneLabel(replyTone.value)}风格回复建议已生成。`);
       return;
     }
     const { data } = await aiMailApi.suggestReplies(currentMail.value.id, replyTone.value);
     setAiResultCache('reply', currentMail.value.id, data, replyTone.value);
-    messages.value.push(createMessage('assistant', `浠ヤ笅鏄?${replyTone.value} 椋庢牸鐨勫洖澶嶅缓璁細`, 'suggestions', { suggestions: data.suggestions || [] }));
-    rememberHistory('reply', `${replyTone.value} 椋庢牸鍥炲寤鸿宸茬敓鎴愩€俙);
+    messages.value.push(
+      createMessage('assistant', `以下是 ${toneLabel(replyTone.value)} 风格的回复建议：`, 'suggestions', {
+        suggestions: data.suggestions || []
+      })
+    );
+    rememberHistory('reply', `${toneLabel(replyTone.value)}风格回复建议已生成。`);
   } catch (err) {
-    messages.value.push(createMessage('assistant', normalizeAiError(err, '鍥炲寤鸿')));
+    messages.value.push(createMessage('assistant', normalizeAiError(err, '回复建议')));
   } finally {
     loading.value = false;
   }
@@ -338,7 +363,7 @@ async function submitPrompt() {
   draftPrompt.value = '';
 
   if (!currentMail.value.id) {
-    messages.value.push(createMessage('assistant', '璇峰厛閫夋嫨涓€灏侀偖浠躲€?));
+    messages.value.push(createMessage('assistant', '请先选择一封邮件。'));
     return;
   }
   if (!configured.value) {
@@ -347,34 +372,34 @@ async function submitPrompt() {
   }
 
   const normalized = prompt.toLowerCase();
-  if (['summary', 'summarize', 'key points', '鎽樿', '鎬荤粨'].some(item => normalized.includes(item) || prompt.includes(item))) {
+  if (['summary', 'summarize', 'key points', '摘要', '总结'].some(item => normalized.includes(item) || prompt.includes(item))) {
     return runSummary(false);
   }
-  if (['todo', 'task', 'deadline', 'contact', 'action item', '寰呭姙', '浠诲姟', '鎴', '鑱旂郴浜?].some(item => normalized.includes(item) || prompt.includes(item))) {
+  if (['todo', 'task', 'deadline', 'contact', 'action item', '待办', '任务', '截止', '联系人'].some(item => normalized.includes(item) || prompt.includes(item))) {
     return runActionItems(false);
   }
-  if (['reply', 'response', '鍥炲', '鍥炰俊'].some(item => normalized.includes(item) || prompt.includes(item))) {
+  if (['reply', 'response', '回复', '回信'].some(item => normalized.includes(item) || prompt.includes(item))) {
     updateToneByPrompt(normalized, prompt);
     return runReplySuggestions(false);
   }
 
-  messages.value.push(createMessage('assistant', '褰撳墠鏀寔锛氶偖浠舵憳瑕併€佸緟鍔炴彁鍙栥€佸洖澶嶅缓璁€?));
+  messages.value.push(createMessage('assistant', '当前支持：邮件摘要、待办提取、回复建议。'));
 }
 
 function updateToneByPrompt(normalizedPrompt, originalPrompt) {
-  if (normalizedPrompt.includes('brief') || originalPrompt.includes('绠€娲?)) return (replyTone.value = 'brief');
-  if (normalizedPrompt.includes('polite') || originalPrompt.includes('绀艰矊')) return (replyTone.value = 'polite');
-  if (normalizedPrompt.includes('friendly') || originalPrompt.includes('鍙嬪ソ')) return (replyTone.value = 'friendly');
-  if (normalizedPrompt.includes('formal') || originalPrompt.includes('姝ｅ紡')) replyTone.value = 'formal';
+  if (normalizedPrompt.includes('brief') || originalPrompt.includes('简洁')) return (replyTone.value = 'brief');
+  if (normalizedPrompt.includes('polite') || originalPrompt.includes('礼貌')) return (replyTone.value = 'polite');
+  if (normalizedPrompt.includes('friendly') || originalPrompt.includes('友好')) return (replyTone.value = 'friendly');
+  if (normalizedPrompt.includes('formal') || originalPrompt.includes('正式')) replyTone.value = 'formal';
 }
 
 function ensureReady() {
   if (!currentMail.value.id) {
-    ElMessage.warning('璇峰厛閫夋嫨涓€灏侀偖浠躲€?);
+    ElMessage.warning('请先选择一封邮件。');
     return false;
   }
   if (!configured.value) {
-    ElMessage.warning('璇峰厛瀹屾垚 AI 璁剧疆銆?);
+    ElMessage.warning('请先完成 AI 设置。');
     return false;
   }
   return true;
@@ -383,26 +408,26 @@ function ensureReady() {
 function normalizeAiError(error, actionName) {
   const status = error?.response?.status;
   const message = error?.response?.data?.message || error?.message || '';
-  if (status === 401) return '鐧诲綍宸插け鏁堬紝璇烽噸鏂扮櫥褰曘€?;
+  if (status === 401) return '登录已失效，请重新登录。';
   if (status === 400 && /config|密钥|model/i.test(message)) return 'AI 配置不完整，请检查接入密钥和模型名称。';
-  if (status === 502 || status === 504) return `绗笁鏂规ā鍨嬫湇鍔℃殏鏃朵笉鍙敤锛屾棤娉曞畬鎴?{actionName}銆俙;
-  if (/timeout/i.test(message)) return `${actionName}璇锋眰瓒呮椂锛岃绋嶅悗閲嶈瘯銆俙;
-  if (/model/i.test(message) && /not/i.test(message)) return '褰撳墠妯″瀷鍚嶇О鏃犳晥鎴栨殏涓嶅彲鐢ㄣ€?;
-  return `${actionName}澶辫触銆?{message || '璇风◢鍚庨噸璇曘€?}`;
+  if (status === 502 || status === 504) return `第三方模型服务暂时不可用，无法完成${actionName}。`;
+  if (/timeout/i.test(message)) return `${actionName}请求超时，请稍后重试。`;
+  if (/model/i.test(message) && /not/i.test(message)) return '当前模型名称无效或暂不可用。';
+  return `${actionName}失败。${message || '请稍后重试。'}`;
 }
 
 async function copySuggestion(text) {
   try {
     await navigator.clipboard.writeText(text);
-    ElMessage.success('宸插鍒?);
+    ElMessage.success('已复制');
   } catch {
-    ElMessage.warning('澶嶅埗澶辫触');
+    ElMessage.warning('复制失败');
   }
 }
 
 function insertSuggestion(text) {
   if (!currentMail.value.id) {
-    ElMessage.warning('璇峰厛閫夋嫨涓€灏侀偖浠躲€?);
+    ElMessage.warning('请先选择一封邮件。');
     return;
   }
   mailStore.setMailId(currentMail.value.id);
@@ -414,7 +439,7 @@ function insertSuggestion(text) {
 }
 
 function formatContacts(contacts) {
-  return Array.isArray(contacts) && contacts.length ? contacts.join('锛?) : '鏈寚瀹?;
+  return Array.isArray(contacts) && contacts.length ? contacts.join('、') : '未指定';
 }
 
 function formatHistoryTime(timestamp) {
@@ -427,9 +452,9 @@ function formatHistoryTime(timestamp) {
 }
 
 function historyKindLabel(kind) {
-  if (kind === 'summary') return '鎽樿';
-  if (kind === 'action-items') return '寰呭姙';
-  if (kind === 'reply') return '鍥炲';
+  if (kind === 'summary') return '摘要';
+  if (kind === 'action-items') return '待办';
+  if (kind === 'reply') return '回复';
   return kind;
 }
 
@@ -450,7 +475,7 @@ function handleMailDrop(event) {
     const mail = JSON.parse(raw);
     aiStore.openForMail(mail);
   } catch {
-    ElMessage.warning('鏃犳硶璇诲彇鎷栨嫿鐨勯偖浠朵俊鎭€?);
+    ElMessage.warning('无法读取拖拽的邮件信息。');
   }
 }
 </script>
@@ -500,4 +525,3 @@ function handleMailDrop(event) {
 .composer-tip { font-size: 12px; color: #909399; }
 @keyframes pulse { 0%,80%,100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
 </style>
-

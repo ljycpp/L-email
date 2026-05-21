@@ -1,56 +1,35 @@
-# L-email 系统垃圾邮件检测服务
+# 垃圾邮件模型训练工具
 
-该模块是 L-email 系统的 Python 垃圾邮件检测服务，负责：
+这个目录现在只负责垃圾邮件模型的训练、评估和导出，不再作为运行时 Web 服务依赖。
 
-- 文本垃圾邮件识别
-- 为 Java 后端提供 `/api/login`、`/api/predict-text` 等接口
-- 支撑“垃圾邮件自动过滤”开关
+## 目录作用
 
-## 环境
+- `train.py`：训练并导出模型
+- `predict.py`：本地命令行测试模型
+- `models/spam_model.json`：训练产出的模型文件
+- `spam_filter/`：特征提取、分类器、训练逻辑
 
-- Python 3.7+
-- 当前版本仅依赖 Python 标准库，无需额外安装第三方包
+## 运行方式
 
-## 启动
+训练模型：
 
 ```powershell
-Set-Location ".\email-spam"
-python .\web_app.py
+python .\train.py
 ```
 
-默认地址：
+命令行预测：
 
-```text
-http://127.0.0.1:8000
+```powershell
+python .\predict.py --subject "测试主题" --body "测试正文"
 ```
 
-## 默认登录
+## 与后端的关系
 
-- 用户名：`admin`
-- 密码：`admin123`
+- 训练完成后，将 `models/spam_model.json` 同步到：
+  - `mail-system-backend/src/main/resources/spam_model.json`
+- 后端启动时会直接加载这个模型文件
+- 邮件到达时由后端内置插件执行垃圾邮件识别
 
-## 与后端对接
+## 说明
 
-后端配置在：
-
-- [application.yml](../mail-system-backend/src/main/resources/application.yml)
-
-默认值：
-
-- `spam-detector.base-url = http://127.0.0.1:8000`
-- `spam-detector.username = admin`
-- `spam-detector.password = admin123`
-
-## 常用接口
-
-- `POST /api/login`
-- `POST /api/predict-text`
-- `POST /api/predict-eml`
-- `GET /api/status`
-
-## 测试建议
-
-1. 先单独打开 `http://127.0.0.1:8000`
-2. 用默认账号登录
-3. 手工输入主题和正文，确认能返回垃圾/正常结果
-4. 再回到 L-email 系统前端开启垃圾邮件自动过滤开关
+如果你只需要运行 L-email 系统，不需要单独启动这里的 Python 服务。

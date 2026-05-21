@@ -1,4 +1,4 @@
-﻿package com.practice.mailsystem.priority.service;
+package com.practice.mailsystem.priority.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.practice.mailsystem.ai.config.AiProperties;
@@ -62,7 +62,7 @@ public class MailPriorityAutoService {
         Long userId = requiredUserId();
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "鐢ㄦ埛涓嶅瓨鍦?);
+            throw new BusinessException(404, "用户不存在");
         }
         if (!isAiConfigured(userId)) {
             throw new BusinessException(400, "请先在 AI 设置中配置并启用接入密钥");
@@ -80,16 +80,13 @@ public class MailPriorityAutoService {
         Long userId = requiredUserId();
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "鐢ㄦ埛涓嶅瓨鍦?);
+            throw new BusinessException(404, "用户不存在");
         }
         user.setAutoPriorityFilter(0);
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
     }
 
-    /**
-     * 鏀朵俊鍚庡皾璇曡嚜鍔ㄨ瘎浼颁紭鍏堢骇骞跺啓鍏ユ帓搴忓瓧娈点€?
-     */
     public void tryAutoPriority(Long ownerUserId,
                                 MailUserBox inboxBox,
                                 MailMessage message,
@@ -116,7 +113,7 @@ public class MailPriorityAutoService {
         String apiKey = aiApiKeyCipher.decrypt(config.getApiKeyEncrypted());
         String modelName = config.getModelName();
 
-        String subject = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "锛堟棤涓婚锛?;
+        String subject = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "（无主题）";
         String body = truncate(resolveBodyText(message));
 
         try {
@@ -154,7 +151,7 @@ public class MailPriorityAutoService {
         }
         String level = normalizeLevel(result.level());
         double score = clampScore(result.score());
-        String reason = StringUtils.hasText(result.reason()) ? result.reason().trim() : "绯荤粺宸茶瘎浼伴偖浠朵紭鍏堢骇";
+        String reason = StringUtils.hasText(result.reason()) ? result.reason().trim() : "系统已评估邮件优先级";
         if (reason.length() > 500) {
             reason = reason.substring(0, 500);
         }
@@ -221,9 +218,8 @@ public class MailPriorityAutoService {
     private Long requiredUserId() {
         Long userId = UserContext.requireUserId();
         if (userId == null) {
-            throw new BusinessException(401, "鏈櫥褰?);
+            throw new BusinessException(401, "未登录");
         }
         return userId;
     }
 }
-

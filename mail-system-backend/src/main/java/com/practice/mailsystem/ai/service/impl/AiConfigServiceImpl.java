@@ -1,4 +1,4 @@
-﻿package com.practice.mailsystem.ai.service.impl;
+package com.practice.mailsystem.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.practice.mailsystem.ai.dto.AiConfigSaveRequest;
@@ -92,8 +92,8 @@ public class AiConfigServiceImpl implements AiConfigService {
 
         try {
             aiProvider.testConnection(apiKey, request.modelName().trim());
-            updateTestStatus(existing, userId, AiRecordStatus.SUCCESS.name(), "杩炴帴鎴愬姛");
-            return new AiConfigTestVO(true, "杩炴帴鎴愬姛");
+            updateTestStatus(existing, userId, AiRecordStatus.SUCCESS.name(), "连接成功");
+            return new AiConfigTestVO(true, "连接成功");
         } catch (BusinessException ex) {
             updateTestStatus(existing, userId, AiRecordStatus.FAILED.name(), ex.getMessage());
             throw ex;
@@ -114,10 +114,10 @@ public class AiConfigServiceImpl implements AiConfigService {
     private UserAiConfig requiredEnabledConfig(Long userId) {
         UserAiConfig config = findByUserId(userId);
         if (config == null) {
-            throw new BusinessException(400, "灏氭湭閰嶇疆 AI锛岃鍏堝湪璁剧疆椤典繚瀛?);
+            throw new BusinessException(400, "尚未配置 AI，请先在设置页保存接入信息");
         }
         if (config.getEnabled() == null || config.getEnabled() != 1) {
-            throw new BusinessException(400, "AI 鍔╂墜鏈惎鐢紝璇峰湪璁剧疆涓墦寮€寮€鍏?);
+            throw new BusinessException(400, "AI 助手未启用，请先在设置中打开开关");
         }
         return config;
     }
@@ -156,4 +156,3 @@ public class AiConfigServiceImpl implements AiConfigService {
         return message.length() > 255 ? message.substring(0, 255) : message;
     }
 }
-

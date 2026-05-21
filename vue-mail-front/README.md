@@ -34,7 +34,7 @@ npm run preview
 ## 默认账号
 
 - `admin / 123456`
-- 完整邮箱为 `admin@lmailbox.com`
+- 完整邮箱：`admin@lmailbox.com`
 
 ## 重要页面
 
@@ -46,14 +46,13 @@ npm run preview
 ## 智能能力
 
 - AI 助手：摘要、回复建议、待办提取
-- 垃圾邮件自动过滤：依赖 Python 服务
+- 垃圾邮件自动过滤：依赖后端内置模型插件
 - 邮件优先级判断：依赖第三方大模型接入配置
 
 ## 启动前检查
 
 1. 后端已启动
-2. 垃圾邮件服务已启动（如需测试垃圾过滤）
-3. `.env` 中 `VITE_MAIL_EMAIL_DOMAIN` 与后端域名一致
+2. `.env` 中 `VITE_MAIL_EMAIL_DOMAIN` 与后端域名一致
 
 ## 产品命名
 

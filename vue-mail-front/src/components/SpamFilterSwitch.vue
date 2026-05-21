@@ -1,7 +1,7 @@
 <template>
   <div class="spam-filter-switch" @click.stop>
     <el-tooltip
-      content="开启后，新收到的邮件会自动发送到垃圾邮件检测服务。若被识别为垃圾邮件，将自动移入垃圾邮件箱并记录原因。"
+      content="开启后，新收到的邮件会由系统内置垃圾邮件模型自动检测。若被识别为垃圾邮件，将自动移入垃圾邮件箱并记录原因。"
       placement="bottom"
     >
       <el-switch
@@ -39,7 +39,7 @@ async function onChange(val) {
   if (val) {
     try {
       await ElMessageBox.confirm(
-        '开启后，新收到的邮件会自动发送到外部垃圾邮件检测服务。如果检测服务不可用，开启会失败。',
+        '开启后，新收到的邮件会自动交给系统内置垃圾邮件模型检测。识别为垃圾邮件时，会自动移入垃圾邮件箱。',
         '开启垃圾邮件过滤',
         { type: 'info', confirmButtonText: '开启', cancelButtonText: '取消' }
       );

@@ -32,14 +32,14 @@ app:
   public-base-url: http://localhost:8080
   jwt:
     issuer: mail-system-backend
-    secret: ${APP_JWT_SECRET:change-me-before-production}
+    secret: ${APP_JWT_SECRET:l-email-dev-jwt-secret-2026-safe-minimum-32}
     expire-hours: 24
   ai:
     vveai-chat-url: https://api.vveai.com/v1/chat/completions
     connect-timeout-seconds: 5
     read-timeout-seconds: 20
     max-content-length: 4000
-    secret-key: ${APP_AI_SECRET_KEY:changeMe12345678}
+    secret-key: ${APP_AI_SECRET_KEY:l-email-ai-secret-key-2026-32!!!}
   storage:
     root-path: D:/mail-system-storage/attachments
   data:
@@ -47,12 +47,9 @@ app:
 
 spam-detector:
   enabled: true
-  base-url: http://127.0.0.1:8000
-  username: ${SPAM_DETECTOR_USERNAME:admin}
-  password: ${SPAM_DETECTOR_PASSWORD:admin123}
-  connect-timeout-ms: 3000
-  read-timeout-ms: 10000
+  model-path: classpath:spam_model.json
   spam-threshold: 0.5
+  top-reason-count: 5
 
 logging:
   level:
