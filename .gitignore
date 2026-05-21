@@ -1,0 +1,51 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local environments
+.conda-cpp/
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Java / Maven
+mail-system-backend/target/
+mail-system-backend/.m2/
+
+# Node / Frontend
+vue-mail-front/node_modules/
+vue-mail-front/dist/
+vue-mail-front/.vite/
+
+# Runtime / cache
+tmp/
+temp/
+*.tmp
+
+# Packaged artifacts
+*.jar
+*.war
+*.zip
+
+# Docs / local exports
+*.pdf
+
+# Tooling bundles not needed in repo
+tools/

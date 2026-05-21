@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>分析看板 | 邮件雷达控制台</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+  </head>
+  <body class="app-body">
+    <div class="page-shell">
+      <header class="topbar reveal">
+        <div class="brandmark">
+          <span class="brandmark-dot"></span>
+          <div>
+            <p class="eyebrow">ADMIN ANALYTICS</p>
+            <h2>垃圾邮件可视化分析看板</h2>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="userbox-text">
+            <strong id="analytics-display-name">--</strong>
+            <span id="analytics-role-text">--</span>
+          </div>
+          <a class="ghost-link-button" href="/">返回管理端</a>
+          <button type="button" class="ghost-button" id="analytics-logout-button">退出登录</button>
+        </div>
+      </header>
+
+      <header class="hero analytics-hero reveal">
+        <div class="hero-copy">
+          <p class="eyebrow">VISUAL INSIGHTS</p>
+          <h1>模型和样本正在讲什么</h1>
+          <p class="hero-text">
+            这个页面会基于当前训练数据和现有划分策略，生成垃圾邮件占比、词云、混淆矩阵以及高判别信号，方便你快速判断数据质量和模型表现。
+          </p>
+        </div>
+        <div class="hero-side">
+          <div class="status-pill">
+            <span class="pill-dot"></span>
+            <span id="analytics-status">分析数据加载中</span>
+          </div>
+          <button type="button" class="secondary-button" id="refresh-analytics-button">刷新分析</button>
+        </div>
+      </header>
+
+      <main class="analytics-dashboard">
+        <section class="panel reveal">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-kicker">数据概览</p>
+              <h2>当前样本与评估规模</h2>
+            </div>
+          </div>
+          <div class="overview-grid">
+            <div class="overview-card">
+              <span class="status-label">总样本数</span>
+              <strong id="metric-sample-count">--</strong>
+            </div>
+            <div class="overview-card">
+              <span class="status-label">训练集</span>
+              <strong id="metric-train-count">--</strong>
+            </div>
+            <div class="overview-card">
+              <span class="status-label">测试集</span>
+              <strong id="metric-test-count">--</strong>
+            </div>
+            <div class="overview-card">
+              <span class="status-label">垃圾邮件占比</span>
+              <strong id="metric-spam-ratio">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel reveal">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-kicker">占比分析</p>
+              <h2>垃圾邮件与正常邮件分布</h2>
+            </div>
+          </div>
+          <div class="ratio-layout">
+            <div class="ring-card">
+              <div class="ring-figure" id="distribution-ring">
+                <div class="ring-hole">
+                  <strong id="ring-center-value">--</strong>
+                  <span>垃圾邮件</span>
+                </div>
+              </div>
+            </div>
+            <div class="ring-legend">
+              <div class="legend-item">
+                <span class="legend-dot danger-dot"></span>
+                <div>
+                  <strong id="legend-spam-count">--</strong>
+                  <span>垃圾邮件样本</span>
+                </div>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot safe-dot"></span>
+                <div>
+                  <strong id="legend-ham-count">--</strong>
+                  <span>正常邮件样本</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel reveal">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-kicker">混淆矩阵</p>
+              <h2>当前划分下的预测结果</h2>
+            </div>
+          </div>
+          <div class="matrix-summary">
+            <div class="overview-card">
+              <span class="status-label">准确率</span>
+              <strong id="metric-accuracy">--</strong>
+            </div>
+            <div class="overview-card">
+              <span class="status-label">精确率</span>
+              <strong id="metric-precision">--</strong>
+            </div>
+            <div class="overview-card">
+              <span class="status-label">召回率</span>
+              <strong id="metric-recall">--</strong>
+            </div>
+            <div class="overview-card">
+              <span class="status-label">F1</span>
+              <strong id="metric-f1">--</strong>
+            </div>
+          </div>
+          <div class="matrix-grid" id="matrix-grid"></div>
+        </section>
+
+        <section class="panel reveal">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-kicker">词云</p>
+              <h2>高频语义信号</h2>
+            </div>
+          </div>
+          <div class="cloud-columns">
+            <div class="cloud-card">
+              <h3>垃圾邮件词云</h3>
+              <div class="cloud-board danger-cloud" id="spam-cloud"></div>
+            </div>
+            <div class="cloud-card">
+              <h3>正常邮件词云</h3>
+              <div class="cloud-board safe-cloud" id="ham-cloud"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel reveal">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-kicker">判别信号</p>
+              <h2>模型最依赖的关键词</h2>
+            </div>
+          </div>
+          <div class="signals-grid">
+            <div class="signal-card">
+              <h3>偏向垃圾邮件</h3>
+              <div class="signal-list" id="spam-signals"></div>
+            </div>
+            <div class="signal-card">
+              <h3>偏向正常邮件</h3>
+              <div class="signal-list" id="ham-signals"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/assets/analytics.js"></script>
+  </body>
+</html>

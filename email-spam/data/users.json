@@ -1,0 +1,34 @@
+{
+  "users": [
+    {
+      "id": "3450d7ac8d552baf",
+      "username": "admin",
+      "display_name": "系统管理员",
+      "role": "admin",
+      "enabled": true,
+      "created_at": 1776311612,
+      "updated_at": 1776311612,
+      "password": {
+        "algorithm": "pbkdf2_sha256",
+        "iterations": 120000,
+        "salt": "6d74332b38c783f2dc85d6653b38a074",
+        "hash": "faba32b6d66829a2f486ffbb8ae05dfde4de8a3694fb4e5a3ff9472720acf156"
+      }
+    },
+    {
+      "id": "d84fd8e8df151b96",
+      "username": "user01",
+      "display_name": "admin",
+      "role": "analyst",
+      "enabled": true,
+      "created_at": 1776311668,
+      "updated_at": 1776311668,
+      "password": {
+        "algorithm": "pbkdf2_sha256",
+        "iterations": 120000,
+        "salt": "59f0929c561d14bb06f91750454dd9d3",
+        "hash": "dbccf9ed1733ee85c5edc9be84da6b8db73dbdef36592d76ec1b5c741d2c4613"
+      }
+    }
+  ]
+}

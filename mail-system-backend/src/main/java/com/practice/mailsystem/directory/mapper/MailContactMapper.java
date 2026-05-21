@@ -1,0 +1,9 @@
+package com.practice.mailsystem.directory.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.practice.mailsystem.directory.entity.MailContact;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface MailContactMapper extends BaseMapper<MailContact> {
+}

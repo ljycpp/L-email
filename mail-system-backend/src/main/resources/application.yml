@@ -1,0 +1,59 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mail-system-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/mail_system?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: ${MAIL_DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 50MB
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+  global-config:
+    banner: false
+
+# L 邮箱：注册与默认登录账号必须使用此后缀；修改时请同步 vue-mail-front 的 VITE_MAIL_EMAIL_DOMAIN
+mail-system:
+  email-domain: lmailbox.com
+
+app:
+  public-base-url: http://localhost:8080
+  jwt:
+    issuer: mail-system-backend
+    secret: ${APP_JWT_SECRET:change-me-before-production}
+    expire-hours: 24
+  ai:
+    vveai-chat-url: https://api.vveai.com/v1/chat/completions
+    connect-timeout-seconds: 5
+    read-timeout-seconds: 20
+    max-content-length: 4000
+    secret-key: ${APP_AI_SECRET_KEY:changeMe12345678}
+  storage:
+    root-path: D:/mail-system-storage/attachments
+  data:
+    initialize-demo-data: true
+
+spam-detector:
+  enabled: true
+  base-url: http://127.0.0.1:8000
+  username: ${SPAM_DETECTOR_USERNAME:admin}
+  password: ${SPAM_DETECTOR_PASSWORD:admin123}
+  connect-timeout-ms: 3000
+  read-timeout-ms: 10000
+  spam-threshold: 0.5
+
+logging:
+  level:
+    com.practice.mailsystem: info

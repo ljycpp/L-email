@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+.app-container {
+  padding: 20px;
+}
+
+.filter-container {
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.pagination-container {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.link-type {
+  color: #409eff;
+  cursor: pointer;
+}
+
+.link-type:hover {
+  text-decoration: underline;
+}
+
+.star {
+  cursor: pointer;
+  margin-right: 6px;
+}
