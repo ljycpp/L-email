@@ -2,8 +2,6 @@
   <QqMailList
     folder-title="收件箱"
     cache-key="inbox"
-    show-spam-filter-switch
-    show-priority-filter-switch
     empty-text="收件箱为空"
     :fetch-list="inboxApi.list"
     :delete-mail="inboxApi.delete"

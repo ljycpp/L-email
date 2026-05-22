@@ -1,80 +1,135 @@
 <template>
-  <div v-loading="loading" class="app-container">
-    <div class="filter-container">
-      <el-button @click="goBack">返回列表</el-button>
-      <el-button v-if="mailType === 'receive'" type="primary" @click="goCompose('reply')">回复</el-button>
-      <el-button v-if="mailType === 'receive'" @click="goCompose('replyAll')">回复全部</el-button>
-      <el-button v-if="mailType === 'send'" type="primary" @click="goCompose('edit')">编辑</el-button>
-      <el-button @click="goCompose('forward')">转发</el-button>
-      <el-button type="success" plain @click="openAiAssistant">智能助手</el-button>
-      <el-button v-if="mail.spamReason" type="success" @click="markNotSpam">恢复到收件箱</el-button>
-      <el-button v-else type="danger" @click="remove">移入回收站</el-button>
-      <el-button @click="load">刷新</el-button>
-      <MailMarkDropdown :labels="labelList" @mark="markMail" />
+  <div v-loading="loading" class="mail-detail-container">
+    <div class="detail-toolbar">
+      <el-button text size="default" class="toolbar-btn" @click="goBack">
+        <el-icon class="el-icon--left"><ArrowLeft /></el-icon>返回
+      </el-button>
+      
+      <div class="toolbar-divider"></div>
+
+      <el-button v-if="mailType === 'receive'" text size="default" class="toolbar-btn" @click="goCompose('reply')">
+        <el-icon class="el-icon--left"><Back /></el-icon>回复
+      </el-button>
+      <el-button v-if="mailType === 'receive'" text size="default" class="toolbar-btn" @click="goCompose('replyAll')">
+        <el-icon class="el-icon--left"><Back /></el-icon>回复全部
+      </el-button>
+      <el-button v-if="mailType === 'send'" text size="default" class="toolbar-btn" @click="goCompose('edit')">
+        编辑
+      </el-button>
+      <el-button text size="default" class="toolbar-btn" @click="goCompose('forward')">
+        <el-icon class="el-icon--left"><Share /></el-icon>转发
+      </el-button>
+
+      <div class="toolbar-divider"></div>
+
+      <el-button text size="default" class="toolbar-btn ai-btn" @click="openAiAssistant">
+        <el-icon class="el-icon--left"><ChatDotRound /></el-icon>智能助手
+      </el-button>
+
+      <div class="toolbar-divider"></div>
+
+      <el-button v-if="mail.spamReason" text size="default" class="toolbar-btn" @click="markNotSpam">
+        <el-icon class="el-icon--left"><MessageBox /></el-icon>恢复到收件箱
+      </el-button>
+      <el-button v-else text size="default" class="toolbar-btn danger" @click="remove">
+        <el-icon class="el-icon--left"><Delete /></el-icon>移入回收站
+      </el-button>
+
+      <el-button text size="default" class="toolbar-btn" @click="load">
+        <el-icon class="el-icon--left"><Refresh /></el-icon>刷新
+      </el-button>
+
+      <div class="toolbar-divider"></div>
+      
+      <MailMarkDropdown :labels="labelList" size="default" @mark="markMail" />
     </div>
 
-    <el-card>
-      <el-alert
-        v-if="mail.spamReason"
-        type="warning"
-        :closable="false"
-        show-icon
-        title="垃圾邮件识别说明"
-        :description="mail.spamReason"
-        class="spam-reason-alert"
-      />
-      <el-alert
-        v-if="mail.priorityReason"
-        type="info"
-        :closable="false"
-        show-icon
-        title="优先级分析"
-        class="priority-reason-alert"
-      >
-        <template #default>
-          <el-tag v-if="mail.priorityLevel" size="small" :type="priorityTagType(mail.priorityLevel)">
-            {{ priorityLabel(mail.priorityLevel) }}
-          </el-tag>
-          <span v-if="mail.priorityScore != null" class="priority-score">
-            分数 {{ (mail.priorityScore * 100).toFixed(0) }}%
-          </span>
-          <p class="priority-desc">{{ mail.priorityReason }}</p>
-        </template>
-      </el-alert>
-      <div class="title-row">
-        <h2>{{ mail.title || '（无主题）' }}</h2>
-        <el-icon class="star" @click="toggleStar">
-          <StarFilled v-if="mail.isStar" />
-          <Star v-else />
-        </el-icon>
-      </div>
-      <p><el-tag size="small">发件人</el-tag> {{ mail.sender }} &lt;{{ mail.sendMail }}&gt;</p>
-      <p><el-tag size="small">时间</el-tag> {{ formatTime(showTime) }}</p>
-      <p v-if="mail.labelList?.length" class="label-row">
-        <el-tag size="small">标签</el-tag>
-        <el-tag
-          v-for="label in mail.labelList"
-          :key="label.id"
-          size="small"
-          class="mail-label-tag"
-          :style="{ borderColor: label.color, color: label.color }"
+    <div class="detail-content-area">
+      <div class="email-main-body">
+        <!-- Warnings / Info Alerts -->
+        <el-alert
+          v-if="mail.spamReason"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="垃圾邮件识别说明"
+          :description="mail.spamReason"
+          class="spam-reason-alert"
+        />
+        
+        <el-alert
+          v-if="mail.priorityReason"
+          type="info"
+          :closable="false"
+          show-icon
+          title="优先级分析"
+          class="priority-reason-alert"
         >
-          {{ label.name }}
-        </el-tag>
-      </p>
-      <p>
-        <el-tag size="small">收件人</el-tag>
-        <span v-for="party in mail.target" :key="party.mail">{{ party.name }} &lt;{{ party.mail }}&gt;；</span>
-      </p>
-      <p v-if="mail.copy?.length">
-        <el-tag size="small">抄送</el-tag>
-        <span v-for="party in mail.copy" :key="party.mail">{{ party.name }} &lt;{{ party.mail }}&gt;；</span>
-      </p>
+          <template #default>
+            <el-tag v-if="mail.priorityLevel" size="small" :type="priorityTagType(mail.priorityLevel)">
+              {{ priorityLabel(mail.priorityLevel) }}
+            </el-tag>
+            <span v-if="mail.priorityScore != null" class="priority-score">
+              分数 {{ (mail.priorityScore * 100).toFixed(0) }}%
+            </span>
+            <p class="priority-desc">{{ mail.priorityReason }}</p>
+          </template>
+        </el-alert>
 
-      <MailAttachmentList :files="mail.oldFileList" />
+        <!-- Email Subject Row -->
+        <div class="title-row">
+          <h2 class="mail-subject">{{ mail.title || '（无主题）' }}</h2>
+          <div class="mail-title-actions">
+            <el-icon class="star" :class="{ active: mail.isStar }" @click="toggleStar">
+              <StarFilled v-if="mail.isStar" />
+              <Star v-else />
+            </el-icon>
+          </div>
+        </div>
 
-      <div class="mail-content" v-html="mail.content" />
-    </el-card>
+        <!-- Labels Display -->
+        <div v-if="mail.labelList?.length" class="mail-labels-area">
+          <span
+            v-for="label in mail.labelList"
+            :key="label.id"
+            class="detail-label-tag"
+            :style="{ backgroundColor: label.color + '15', borderColor: label.color, color: label.color }"
+          >
+            {{ label.name }}
+          </span>
+        </div>
+
+        <!-- Sender / Receiver Block -->
+        <div class="sender-info-block">
+          <el-avatar :size="40" class="sender-avatar">{{ senderLetter }}</el-avatar>
+          <div class="sender-details">
+            <div class="sender-main-row">
+              <span class="sender-name">{{ mail.sender || '未知' }}</span>
+              <span class="sender-email">&lt;{{ mail.sendMail }}&gt;</span>
+              <span class="mail-date-time">{{ formatTime(showTime) }}</span>
+            </div>
+            <div class="recipients-row">
+              <span class="to-prefix">至</span>
+              <span class="to-names" v-for="(party, idx) in mail.target" :key="party.mail">
+                {{ party.name || party.mail }} &lt;{{ party.mail }}&gt;{{ idx < mail.target.length - 1 ? '、' : '' }}
+              </span>
+              <span v-if="mail.copy?.length" class="cc-section">
+                ；抄送：
+                <span v-for="(party, idx) in mail.copy" :key="party.mail">
+                  {{ party.name || party.mail }} &lt;{{ party.mail }}&gt;{{ idx < mail.copy.length - 1 ? '、' : '' }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attachment List -->
+        <MailAttachmentList :files="mail.oldFileList" class="attachments-area" />
+
+        <!-- Mail Content Body -->
+        <div class="mail-content" v-html="mail.content" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -82,7 +137,9 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Star, StarFilled } from '@element-plus/icons-vue';
+import {
+  Star, StarFilled, ArrowLeft, Back, Delete, Refresh, ChatDotRound, Share, MessageBox
+} from '@element-plus/icons-vue';
 import { labelApi, mailActionApi, mailDetailApi } from '@/api/mail';
 import MailAttachmentList from '@/components/MailAttachmentList.vue';
 import MailMarkDropdown from '@/components/MailMarkDropdown.vue';
@@ -122,6 +179,10 @@ const mail = reactive({
 });
 
 const showTime = computed(() => mail.receiveDate || mail.sendDate);
+const senderLetter = computed(() => {
+  const name = mail.sender || mail.sendMail || 'U';
+  return name.charAt(0).toUpperCase();
+});
 
 onMounted(async () => {
   await Promise.all([load(), loadLabels()]);
@@ -231,44 +292,217 @@ function openAiAssistant() {
 }
 </script>
 
-<style scoped>
-.title-row {
+<style scoped lang="scss">
+.mail-detail-container {
+  height: 100%;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  background: #ffffff;
 }
-.star {
-  cursor: pointer;
-  color: #e6a23c;
-  font-size: 22px;
-}
-.mail-content {
-  margin-top: 20px;
-  padding: 16px;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  min-height: 200px;
-}
-.label-row {
+
+.detail-toolbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f1f3f4;
+  flex-shrink: 0;
+  background: #ffffff;
+
+  .toolbar-btn {
+    color: #444746;
+    font-size: 13px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 4px;
+    margin: 0;
+    font-weight: 500;
+    
+    &:hover {
+      background-color: rgba(60, 64, 67, 0.06);
+      color: #1f1f1f;
+    }
+    
+    &.danger:hover {
+      color: #b00020;
+      background-color: rgba(176, 0, 32, 0.06);
+    }
+
+    &.ai-btn {
+      color: #0b57d0;
+      border: 1px solid #c2e7ff;
+      background-color: #f8faff;
+      
+      &:hover {
+        background-color: #ecf3fe;
+        color: #0b57d0;
+      }
+    }
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background-color: #f1f3f4;
+    margin: 0 8px;
+  }
 }
-.mail-label-tag {
-  background: transparent;
+
+.detail-content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
 }
+
 .spam-reason-alert,
 .priority-reason-alert {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  border-radius: 8px;
 }
+
 .priority-score {
   margin-left: 8px;
   color: #909399;
   font-size: 13px;
 }
+
 .priority-desc {
   margin: 8px 0 0;
   color: #606266;
+}
+
+.email-main-body {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  
+  .mail-subject {
+    font-size: 22px;
+    font-weight: 400;
+    color: #1f1f1f;
+    margin: 0;
+    line-height: 1.3;
+  }
+  
+  .mail-title-actions {
+    display: flex;
+    align-items: center;
+    padding-top: 4px;
+  }
+}
+
+.star {
+  cursor: pointer;
+  color: #dcdfe6;
+  font-size: 22px;
+  transition: color 0.2s;
+  
+  &:hover, &.active {
+    color: #e6a23c;
+  }
+}
+
+.mail-labels-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+  
+  .detail-label-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid;
+    font-weight: 500;
+  }
+}
+
+.sender-info-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f3f4;
+  
+  .sender-avatar {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  
+  .sender-details {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .sender-main-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+    
+    .sender-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1f1f1f;
+    }
+    
+    .sender-email {
+      font-size: 12px;
+      color: #5f6368;
+    }
+    
+    .mail-date-time {
+      margin-left: auto;
+      font-size: 12px;
+      color: #5f6368;
+    }
+  }
+  
+  .recipients-row {
+    font-size: 12px;
+    color: #5f6368;
+    line-height: 1.4;
+    
+    .to-prefix {
+      color: #70757a;
+      margin-right: 4px;
+    }
+    
+    .to-names {
+      color: #3c4043;
+    }
+    
+    .cc-section {
+      color: #70757a;
+      
+      span {
+        color: #3c4043;
+      }
+    }
+  }
+}
+
+.attachments-area {
+  margin-bottom: 24px;
+}
+
+.mail-content {
+  color: #202124;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 300px;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 </style>

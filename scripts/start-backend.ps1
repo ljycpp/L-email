@@ -3,8 +3,18 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $backendDir = Join-Path $projectRoot "mail-system-backend"
 
-$javaHome = if ($env:JAVA_HOME) { $env:JAVA_HOME } else { "D:\anaconda\envs\re2nfa-java\Library" }
-$mavenCmd = Join-Path $javaHome "bin\mvn.cmd"
+$javaHome = "C:\Program Files\Java\jdk-21.0.11"
+if (-not (Test-Path $javaHome)) {
+    if ($env:JAVA_HOME -and (Test-Path $env:JAVA_HOME)) {
+        $javaHome = $env:JAVA_HOME
+    } else {
+        $javaHome = "D:\anaconda\envs\re2nfa-java\Library"
+    }
+}
+$mavenCmd = try { (Get-Command mvn -ErrorAction SilentlyContinue).Path } catch { $null }
+if (-not $mavenCmd) {
+    $mavenCmd = Join-Path $javaHome "bin\mvn.cmd"
+}
 $javaExe = Join-Path $javaHome "bin\java.exe"
 
 if (-not (Test-Path $backendDir)) {
@@ -42,21 +52,5 @@ Get-Process java, javaw -ErrorAction SilentlyContinue |
 
 Start-Sleep -Milliseconds 800
 
-Write-Host "==> Compiling backend..." -ForegroundColor Cyan
-& $mavenCmd -gs maven-settings.xml -q -DskipTests compile
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Backend compile failed. Please check the Maven output above."
-}
-
-Write-Host "==> Building backend classpath..." -ForegroundColor Cyan
-& $mavenCmd -gs maven-settings.xml -q dependency:build-classpath "-Dmdep.outputFile=target\classpath.txt"
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Backend classpath build failed. Please check the Maven output above."
-}
-
-$classpath = "target\classes;" + (Get-Content "target\classpath.txt" -Raw -Encoding UTF8)
-
 Write-Host "==> Starting backend service at http://localhost:8080" -ForegroundColor Green
-& $javaExe -cp $classpath com.practice.mailsystem.MailSystemApplication
+& $mavenCmd -gs maven-settings.xml clean spring-boot:run

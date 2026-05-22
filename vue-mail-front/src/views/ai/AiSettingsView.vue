@@ -44,6 +44,39 @@
             </div>
           </el-form>
         </el-card>
+
+        <el-card shadow="never" class="settings-card" style="margin-top: 20px;">
+          <template #header>
+            <div class="card-header">
+              <div>
+                <div class="card-eyebrow">FEATURES</div>
+                <h3>自动处理设置</h3>
+              </div>
+            </div>
+          </template>
+
+          <div class="feature-item">
+            <div class="feature-info">
+              <div class="feature-title">垃圾邮件自动过滤</div>
+              <div class="feature-desc">开启后，新收到的邮件会自动交给系统内置垃圾邮件模型检测。识别为垃圾邮件时，会自动移入垃圾邮件箱。</div>
+            </div>
+            <div class="feature-control">
+              <SpamFilterSwitch ref="spamSwitchRef" />
+            </div>
+          </div>
+
+          <el-divider style="margin: 16px 0;" />
+
+          <div class="feature-item">
+            <div class="feature-info">
+              <div class="feature-title">自动优先级判断</div>
+              <div class="feature-desc">开启后，新收到的邮件会自动评分，并按高、中、低优先级分类，高优先级邮件会置顶显示。（依赖上方 AI 配置）</div>
+            </div>
+            <div class="feature-control">
+              <PriorityFilterSwitch ref="prioritySwitchRef" />
+            </div>
+          </div>
+        </el-card>
       </el-col>
 
       <el-col :lg="10" :md="8" :sm="24">
@@ -82,9 +115,13 @@ import { onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { aiConfigApi } from '@/api/ai';
 import { MAIL_SYSTEM_NAME } from '@/constants/brand';
+import SpamFilterSwitch from '@/components/SpamFilterSwitch.vue';
+import PriorityFilterSwitch from '@/components/PriorityFilterSwitch.vue';
 
 const saving = ref(false);
 const testing = ref(false);
+const spamSwitchRef = ref(null);
+const prioritySwitchRef = ref(null);
 
 const config = reactive({
   apiKeyMasked: '',
@@ -124,6 +161,7 @@ async function testConfig() {
     });
     ElMessage.success(data.message || '连接成功');
     await loadConfig();
+    prioritySwitchRef.value?.reload();
   } finally {
     testing.value = false;
   }
@@ -143,6 +181,7 @@ async function saveConfig() {
     });
     ElMessage.success('设置已保存');
     await loadConfig();
+    prioritySwitchRef.value?.reload();
   } finally {
     saving.value = false;
   }
@@ -195,5 +234,33 @@ async function saveConfig() {
   padding-left: 18px;
   color: #606266;
   line-height: 1.8;
+}
+
+.feature-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.feature-info {
+  flex: 1;
+  padding-right: 20px;
+}
+
+.feature-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.feature-desc {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.5;
+}
+
+.feature-control {
+  flex-shrink: 0;
 }
 </style>

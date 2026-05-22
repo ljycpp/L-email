@@ -4,78 +4,74 @@
       <div class="toolbar-left">
         <el-checkbox v-model="selectAll" :indeterminate="indeterminate" @change="onSelectAll" />
         <span class="folder-title">{{ folderTitle }}</span>
-        <SpamFilterSwitch v-if="showSpamFilterSwitch" />
-        <PriorityFilterSwitch v-if="showPriorityFilterSwitch" />
-        <el-button text size="small" @click="refresh">刷新</el-button>
-        <el-button v-if="isTrash && restoreMail" text size="small" type="success" @click="handleRestore()">恢复</el-button>
-        <el-button v-if="isTrash && deletePermanentlyMail" text size="small" type="danger" @click="handlePermanentDelete()">彻底删除</el-button>
-        <el-button v-if="!isTrash && deleteMail" text size="small" type="danger" @click="doDelete()">删除</el-button>
-        <el-button v-if="showEdit" text size="small" type="primary" @click="goCompose('edit')">编辑</el-button>
-        <el-button v-if="showForward" text size="small" @click="goCompose('forward')">转发</el-button>
-        <el-button v-if="showMarkAllRead" text size="small" @click="markAllRead">全部标为已读</el-button>
-        <el-button v-if="showReport" text size="small" @click="reportSpam">标记为垃圾邮件</el-button>
-        <el-button v-if="showNotSpam" text size="small" type="success" @click="markNotSpam">恢复到收件箱</el-button>
-        <el-dropdown v-if="showMoveTo && labelList.length" trigger="click" @command="moveToLabel">
-          <el-button text size="small">
-            添加标签
-            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item v-for="label in labelList" :key="label.id" :command="label.id">
-                {{ label.name }}
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-        <MailMarkDropdown v-if="showMark" :labels="labelList" @mark="handleMark" />
-        <el-input
-          v-model="listQuery.title"
-          class="search-input"
-          placeholder="搜索主题或正文"
-          clearable
-          :prefix-icon="Search"
-          @keyup.enter="search"
-          @clear="search"
-        />
-        <el-input
-          v-if="showSenderFilter"
-          v-model="listQuery.receiveName"
-          class="search-input sender-input"
-          placeholder="发件人姓名"
-          clearable
-          @keyup.enter="search"
-          @clear="search"
-        />
-        <el-input
-          v-if="showSenderFilter"
-          v-model="listQuery.receiveMail"
-          class="search-input sender-input"
-          placeholder="发件人邮箱"
-          clearable
-          @keyup.enter="search"
-          @clear="search"
-        />
-        <el-input
-          v-if="showRecipientFilter"
-          v-model="listQuery.receiveName"
-          class="search-input sender-input"
-          placeholder="收件人姓名"
-          clearable
-          @keyup.enter="search"
-          @clear="search"
-        />
-        <el-select
-          v-if="showLabelFilter && labelList.length"
-          v-model="listQuery.labelId"
-          placeholder="标签"
-          clearable
-          style="width: 120px"
-          size="small"
-          @change="search"
-        >
-          <el-option v-for="label in labelList" :key="label.id" :label="label.name" :value="Number(label.id)" />
-        </el-select>
+
+        <!-- Selection Actions: Only show when multipleSelection.length > 0 -->
+        <template v-if="multipleSelection.length > 0">
+          <el-button v-if="isTrash && restoreMail" text size="small" class="toolbar-btn" @click="handleRestore()">恢复</el-button>
+          <el-button v-if="isTrash && deletePermanentlyMail" text size="small" class="toolbar-btn danger" @click="handlePermanentDelete()">彻底删除</el-button>
+          <el-button v-if="!isTrash && deleteMail" text size="small" class="toolbar-btn danger" @click="doDelete()">删除</el-button>
+          <el-button v-if="showEdit && multipleSelection.length === 1" text size="small" class="toolbar-btn" @click="goCompose('edit')">编辑</el-button>
+          <el-button v-if="showForward && multipleSelection.length === 1" text size="small" class="toolbar-btn" @click="goCompose('forward')">转发</el-button>
+          <el-button v-if="showReport" text size="small" class="toolbar-btn" @click="reportSpam">标记为垃圾邮件</el-button>
+          <el-button v-if="showNotSpam" text size="small" class="toolbar-btn" @click="markNotSpam">恢复到收件箱</el-button>
+          <el-dropdown v-if="showMoveTo && labelList.length" trigger="click" @command="moveToLabel">
+            <el-button text size="small" class="toolbar-btn">
+              添加标签
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-for="label in labelList" :key="label.id" :command="label.id">
+                  {{ label.name }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <MailMarkDropdown v-if="showMark" :labels="labelList" @mark="handleMark" />
+        </template>
+
+        <!-- General Actions: Show when no selection -->
+        <template v-else>
+          <SpamFilterSwitch v-if="showSpamFilterSwitch" />
+          <PriorityFilterSwitch v-if="showPriorityFilterSwitch" />
+          <el-button text size="small" class="toolbar-btn" @click="refresh">刷新</el-button>
+          <el-button v-if="showMarkAllRead" text size="small" class="toolbar-btn" @click="markAllRead">全部标为已读</el-button>
+          
+          <!-- Filter Button and Popover -->
+          <el-popover placement="bottom-start" title="高级筛选" :width="340" trigger="click">
+            <template #reference>
+              <el-button text size="small" class="toolbar-btn">
+                <el-icon class="el-icon--left"><Filter /></el-icon>
+                筛选
+              </el-button>
+            </template>
+            <div class="advanced-filter-panel">
+              <el-form label-width="90px" size="default">
+                <el-form-item label="主题/正文">
+                  <el-input v-model="listQuery.title" placeholder="输入关键词" clearable @keyup.enter="search" />
+                </el-form-item>
+                <el-form-item v-if="showSenderFilter" label="发件人姓名">
+                  <el-input v-model="listQuery.receiveName" placeholder="发件人姓名" clearable @keyup.enter="search" />
+                </el-form-item>
+                <el-form-item v-if="showSenderFilter" label="发件人邮箱">
+                  <el-input v-model="listQuery.receiveMail" placeholder="发件人邮箱" clearable @keyup.enter="search" />
+                </el-form-item>
+                <el-form-item v-if="showRecipientFilter" label="收件人姓名">
+                  <el-input v-model="listQuery.receiveName" placeholder="收件人姓名" clearable @keyup.enter="search" />
+                </el-form-item>
+                <el-form-item v-if="showLabelFilter && labelList.length" label="标签">
+                  <el-select v-model="listQuery.labelId" placeholder="选择标签" clearable style="width: 100%" @change="search">
+                    <el-option v-for="label in labelList" :key="label.id" :label="label.name" :value="Number(label.id)" />
+                  </el-select>
+                </el-form-item>
+                <div class="filter-footer-actions">
+                  <el-button size="small" @click="resetFilters">重置</el-button>
+                  <el-button type="primary" size="small" @click="search">筛选</el-button>
+                </div>
+              </el-form>
+            </div>
+          </el-popover>
+        </template>
       </div>
 
       <div class="toolbar-right">
@@ -227,7 +223,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowDown, ChatDotRound, CollectionTag, Delete, Message, Paperclip, Search, Star, StarFilled } from '@element-plus/icons-vue';
+import { ArrowDown, ChatDotRound, CollectionTag, Delete, Message, Paperclip, Search, Star, StarFilled, Filter } from '@element-plus/icons-vue';
 import { useMailList } from '@/composables/useMailList';
 import { useMailStore } from '@/stores/mail';
 import { useAiStore } from '@/stores/ai';
@@ -430,6 +426,14 @@ const refresh = () => {
   loadLabels();
 };
 
+function resetFilters() {
+  listQuery.title = undefined;
+  listQuery.receiveName = undefined;
+  listQuery.receiveMail = undefined;
+  listQuery.labelId = undefined;
+  search();
+}
+
 function openDetail(id) {
   if (props.openMode === 'draft') {
     mailStore.setDraftId(id);
@@ -568,36 +572,73 @@ defineExpose({ refresh });
   padding: 6px 16px; border-bottom: 1px solid #f0f0f0; background: #fafbfc;
   .filter-tags-label { font-size: 12px; color: #909399; }
 }
+
 .qq-toolbar {
-  display: flex; align-items: center; justify-content: space-between; padding: 8px 16px;
-  border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
-  .toolbar-left { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; flex-wrap: wrap; }
-  .folder-title { font-size: 15px; font-weight: 600; color: #303133; margin: 0 8px 0 4px; white-space: nowrap; }
-  .search-input { width: 160px; margin-left: 4px; }
-  .sender-input { width: 140px; }
+  display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f4; flex-shrink: 0; background: #ffffff;
+  .toolbar-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .folder-title { font-size: 16px; font-weight: 500; color: #1f1f1f; margin: 0 16px 0 8px; white-space: nowrap; }
+  
+  .toolbar-btn {
+    color: #444746;
+    font-size: 13px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 4px;
+    margin: 0;
+    font-weight: 500;
+    &:hover {
+      background-color: rgba(60,64,67,0.06);
+      color: #1f1f1f;
+    }
+    &.danger:hover {
+      color: #b00020;
+      background-color: rgba(176,0,32,0.06);
+    }
+  }
+  
   .toolbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .mail-count { font-size: 13px; color: #909399; white-space: nowrap; }
+  .mail-count { font-size: 13px; color: #5f6368; white-space: nowrap; }
 }
+
+.advanced-filter-panel {
+  padding: 8px 4px;
+  .filter-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+    border-top: 1px solid #f1f3f4;
+    padding-top: 12px;
+  }
+}
+
 .qq-mail-list { flex: 1; overflow-y: auto; }
 .mail-group .group-header { padding: 8px 16px 4px; font-size: 12px; color: #909399; background: #fafafa; border-bottom: 1px solid #f5f5f5; }
 .mail-row {
-  display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 44px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background 0.15s;
-  &:hover { background: #f5f9ff; }
-  &.selected { background: #ecf5ff; }
-  &.unread .row-sender, &.unread .row-subject { font-weight: 600; color: #303133; }
-  .row-sender { flex-shrink: 0; width: 140px; font-size: 14px; color: #606266; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 44px; border-bottom: 1px solid #f1f3f4; cursor: pointer; transition: background 0.15s;
+  background: #ffffff;
+  &:hover { background: #f2f6fc; }
+  &.selected { background: #c2e7ff; }
+  
+  &.unread {
+    .row-sender, .row-subject { font-weight: 700; color: #1f1f1f; }
+    .row-date { font-weight: 700; color: #0b57d0; }
+  }
+  
+  .row-sender { flex-shrink: 0; width: 140px; font-size: 14px; color: #444746; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row-content { flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; white-space: nowrap; }
-  .row-subject { flex-shrink: 0; max-width: 40%; font-size: 14px; color: #303133; overflow: hidden; text-overflow: ellipsis; }
-  .row-snippet { font-size: 13px; color: #909399; overflow: hidden; text-overflow: ellipsis; }
-  .row-priority-tag { margin-left: 4px; vertical-align: middle; }
-  .row-spam-reason { display: block; font-size: 11px; color: #e6a23c; margin-top: 2px; line-height: 1.3; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-subject { flex-shrink: 0; max-width: 40%; font-size: 14px; color: #1f1f1f; overflow: hidden; text-overflow: ellipsis; }
+  .row-snippet { font-size: 13px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; }
+  .row-priority-tag { margin-left: 8px; vertical-align: middle; }
+  .row-spam-reason { display: block; font-size: 11px; color: #b06000; margin-top: 2px; line-height: 1.3; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row-tag { margin-left: 6px; flex-shrink: 0; background: transparent; }
-  .row-date { flex-shrink: 0; width: 88px; text-align: right; font-size: 12px; color: #909399; }
+  .row-date { flex-shrink: 0; width: 88px; text-align: right; font-size: 12px; color: #5f6368; }
   .row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .row-action-icon, .row-star { flex-shrink: 0; font-size: 16px; color: #9aa6b2; cursor: pointer; &:hover { color: #1a73e8; } }
-  .row-action-icon.danger:hover { color: #f56c6c; }
+  .row-action-icon, .row-star { flex-shrink: 0; font-size: 16px; color: #5f6368; cursor: pointer; &:hover { color: #0b57d0; } }
+  .row-action-icon.danger:hover { color: #b00020; }
   .row-star { color: #dcdfe6; &.active, &:hover { color: #e6a23c; } }
-  .row-icon.is-unread { color: #1a73e8; }
+  .row-icon.is-unread { color: #0b57d0; }
 }
 .qq-empty { flex: 1; }
 .qq-pagination { padding: 8px 16px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; flex-shrink: 0; }

@@ -1,8 +1,20 @@
 <template>
   <el-container class="layout-root">
     <el-header class="layout-header">
-      <div class="header-logo" @click="router.push('/inbox')">
-        <span class="logo-text">{{ MAIL_SYSTEM_NAME }}</span>
+      <div class="header-left">
+        <el-button
+          class="sidebar-toggle-btn"
+          text
+          circle
+          @click="appStore.toggleSidebar"
+        >
+          <el-icon :size="20">
+            <Menu />
+          </el-icon>
+        </el-button>
+        <div class="header-logo" @click="router.push('/inbox')">
+          <span class="logo-text">{{ MAIL_SYSTEM_NAME }}</span>
+        </div>
       </div>
       <div class="header-search">
         <el-input
@@ -24,7 +36,7 @@
     </el-header>
 
     <el-container class="layout-body">
-      <el-aside :width="appStore.sidebarCollapsed ? '64px' : '208px'" class="layout-aside">
+      <el-aside :width="appStore.sidebarCollapsed ? '72px' : '256px'" class="layout-aside">
         <el-button
           v-if="!appStore.sidebarCollapsed"
           type="primary"
@@ -131,26 +143,16 @@
             </el-sub-menu>
           </el-sub-menu>
         </el-menu>
-
-        <div v-if="!appStore.sidebarCollapsed" class="sidebar-footer">
-          <el-button text size="small" @click="appStore.toggleSidebar">
-            <el-icon><Fold /></el-icon>
-            收起侧栏
-          </el-button>
-        </div>
-        <el-tooltip v-else content="展开侧栏" placement="right" effect="dark">
-          <el-button text class="expand-btn" @click="appStore.toggleSidebar">
-            <el-icon><Expand /></el-icon>
-          </el-button>
-        </el-tooltip>
       </el-aside>
 
       <el-main class="layout-main">
         <router-view @stats-change="loadSidebarCounts" />
       </el-main>
-    </el-container>
 
-    <AiAssistantDrawer />
+      <div class="layout-ai-aside" :class="{ 'is-visible': aiStore.visible }">
+        <AiAssistantDrawer />
+      </div>
+    </el-container>
 
     <el-dialog v-model="folderDialogVisible" title="新建标签" width="400px" @closed="resetFolderForm">
       <el-form :model="folderForm" label-width="72px" @submit.prevent="submitNewFolder">
@@ -182,11 +184,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import {
   EditPen, Message, Promotion, Document, Delete, Star, Warning,
-  Folder, User, Fold, Expand, Search, Plus, Setting
+  Folder, User, Fold, Expand, Search, Plus, Setting, Menu
 } from '@element-plus/icons-vue';
 import { useAppStore } from '@/stores/app';
 import { useUserStore } from '@/stores/user';
 import { useMenuStore } from '@/stores/menu';
+import { useAiStore } from '@/stores/ai';
 import { useNotificationStore } from '@/stores/notification';
 import { inboxApi, spamApi, labelApi } from '@/api/mail';
 import { MAIL_SYSTEM_NAME } from '@/constants/brand';
@@ -198,6 +201,7 @@ const router = useRouter();
 const appStore = useAppStore();
 const userStore = useUserStore();
 const menuStore = useMenuStore();
+const aiStore = useAiStore();
 const notificationStore = useNotificationStore();
 
 const searchKeyword = ref('');
@@ -307,44 +311,192 @@ async function handleLogout() {
 </script>
 
 <style scoped lang="scss">
-.layout-root { height: 100vh; flex-direction: column; }
+.layout-root { height: 100vh; flex-direction: column; background: #f6f8fc; }
 .layout-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
-  height: 56px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f3f4;
+  height: 64px;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    width: 240px;
+  }
+  .sidebar-toggle-btn {
+    color: #5f6368;
+    &:hover {
+      background-color: rgba(60,64,67,0.08);
+    }
+  }
 }
-.header-logo { cursor: pointer; flex-shrink: 0; }
-.logo-text { font-size: 18px; font-weight: 700; color: #409eff; }
-.header-search { flex: 1; max-width: 520px; }
-.header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.header-logo { cursor: pointer; flex-shrink: 0; display: flex; align-items: center; }
+.logo-text { font-size: 22px; font-weight: 500; color: #1f1f1f; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+
+.header-search {
+  flex: 1;
+  max-width: 720px;
+  margin-left: 8px;
+  :deep(.el-input__wrapper) {
+    background-color: #f1f3f4;
+    border-radius: 24px;
+    box-shadow: none !important;
+    border: 1px solid transparent;
+    padding: 0 16px;
+    height: 48px;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    &:hover {
+      background-color: #eef1f2;
+    }
+    &.is-focus {
+      background-color: #ffffff;
+      box-shadow: 0 1px 1px 0 rgba(65,69,73,0.3), 0 1px 3px 1px rgba(65,69,73,0.15) !important;
+    }
+  }
+  :deep(.el-input__inner) {
+    font-size: 15px;
+  }
+}
+
+.header-right { display: flex; align-items: center; gap: 16px; margin-left: auto; }
 .user-meta { display: flex; flex-direction: column; line-height: 1.2; }
-.user-name { font-size: 13px; font-weight: 600; }
-.user-email { font-size: 11px; color: #909399; }
+.user-name { font-size: 13px; font-weight: 600; color: #3c4043; }
+.user-email { font-size: 11px; color: #5f6368; }
 .layout-body { flex: 1; overflow: hidden; }
+
 .layout-aside {
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
-  border-right: 1px solid #ebeef5;
+  background: #f6f8fc;
+  border-right: none;
   overflow: hidden;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.compose-btn { margin: 12px; width: calc(100% - 24px); }
-.compose-btn-mini { margin: 12px auto; display: block; }
-.sidebar-menu { flex: 1; border-right: none; overflow-y: auto; background: transparent; }
+
+.compose-btn {
+  margin: 16px 12px;
+  height: 48px;
+  border-radius: 16px;
+  font-weight: 500;
+  font-size: 14px;
+  background: #c2e7ff !important;
+  border: none !important;
+  color: #001d35 !important;
+  box-shadow: 0 1px 3px 0 rgba(60,64,67,0.2), 0 2px 6px 2px rgba(60,64,67,0.1) !important;
+  transition: box-shadow 0.2s, background-color 0.2s;
+  &:hover {
+    background: #b3d8ef !important;
+    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15) !important;
+  }
+  .el-icon {
+    font-size: 18px;
+    margin-right: 8px;
+  }
+}
+
+.compose-btn-mini {
+  margin: 16px auto;
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #c2e7ff !important;
+  border: none !important;
+  color: #001d35 !important;
+  box-shadow: 0 1px 3px 0 rgba(60,64,67,0.2), 0 2px 6px 2px rgba(60,64,67,0.1) !important;
+  transition: box-shadow 0.2s, background-color 0.2s;
+  &:hover {
+    background: #b3d8ef !important;
+    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15) !important;
+  }
+  .el-icon {
+    font-size: 18px;
+  }
+}
+
+.sidebar-menu {
+  flex: 1;
+  border-right: none;
+  overflow-y: auto;
+  background: transparent;
+  padding-right: 8px;
+  
+  :deep(.el-menu-item) {
+    height: 40px;
+    line-height: 40px;
+    margin: 0 0 4px 12px;
+    border-radius: 20px;
+    color: #444746;
+    font-size: 14px;
+    padding-left: 16px !important;
+    
+    .el-icon {
+      color: #444746;
+      font-size: 18px;
+    }
+    
+    &:hover {
+      background-color: rgba(60,64,67,0.04);
+      color: #1f1f1f;
+    }
+    
+    &.is-active {
+      background-color: #d3e3fd;
+      color: #041e49;
+      font-weight: 500;
+      .el-icon {
+        color: #041e49;
+      }
+    }
+  }
+
+  :deep(.el-sub-menu) {
+    margin-left: 12px;
+    
+    .el-sub-menu__title {
+      height: 40px;
+      line-height: 40px;
+      border-radius: 20px;
+      color: #444746;
+      font-size: 14px;
+      padding-left: 16px !important;
+      
+      .el-icon {
+        color: #444746;
+        font-size: 18px;
+      }
+      
+      &:hover {
+        background-color: rgba(60,64,67,0.04);
+        color: #1f1f1f;
+      }
+    }
+    
+    .el-menu {
+      background: transparent;
+    }
+    
+    .el-menu-item {
+      margin-left: 16px;
+    }
+  }
+}
+
 .menu-badge {
   margin-left: auto;
   font-size: 11px;
-  background: #409eff;
+  background: #0b57d0;
   color: #fff;
-  padding: 0 6px;
+  padding: 0 8px;
   border-radius: 10px;
   line-height: 18px;
+  font-weight: 600;
 }
-.menu-badge.spam { background: #e6a23c; }
+.menu-badge.spam { background: #b06000; }
 .folder-item-dot {
   display: inline-block;
   width: 8px;
@@ -352,8 +504,23 @@ async function handleLogout() {
   border-radius: 50%;
   margin-right: 8px;
 }
-.folder-add-row { display: flex; align-items: center; gap: 4px; color: #409eff; }
-.sidebar-footer { padding: 8px 12px; border-top: 1px solid #ebeef5; }
-.expand-btn { margin: 8px auto; display: block; }
-.layout-main { padding: 0; overflow: auto; background: #f0f2f5; }
+.folder-add-row { display: flex; align-items: center; gap: 4px; color: #0b57d0; }
+.layout-main { padding: 0; overflow: auto; background: #ffffff; border-radius: 16px 16px 0 0; margin-right: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); }
+
+.layout-ai-aside {
+  width: 380px;
+  height: 100%;
+  background: #ffffff;
+  border-left: 1px solid #e0e2e6;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-left-color 0.2s;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  &.is-collapsed, &:not(.is-visible) {
+    width: 0;
+    border-left: 1px solid transparent;
+  }
+}
 </style>
+

@@ -1,22 +1,18 @@
 <template>
-  <el-drawer
-    v-model="drawerVisible"
-    direction="rtl"
-    size="420px"
-    class="ai-assistant-drawer"
-    :with-header="false"
-    @closed="handleClosed"
-  >
+  <div class="ai-assistant-panel">
     <div class="drawer-shell">
       <header class="assistant-header">
-        <div>
+        <div class="header-top-row">
           <div class="assistant-eyebrow">{{ MAIL_SYSTEM_NAME }}</div>
+          <el-button class="close-panel-btn" :icon="Close" circle text @click="aiStore.close()" />
+        </div>
+        <div class="header-title-area">
           <h3>智能助手</h3>
           <p class="assistant-subtitle">可对当前邮件生成摘要、提取待办并提供回复建议。</p>
         </div>
         <div class="header-actions">
-          <el-button text @click="goSettings">设置</el-button>
-          <el-button text @click="resetConversation">清空</el-button>
+          <el-button text size="small" @click="goSettings">设置</el-button>
+          <el-button text size="small" @click="resetConversation">清空</el-button>
         </div>
       </header>
 
@@ -161,13 +157,14 @@
         </div>
       </div>
     </div>
-  </el-drawer>
+  </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { Close } from '@element-plus/icons-vue';
 import { aiConfigApi, aiMailApi } from '@/api/ai';
 import { useAiStore } from '@/stores/ai';
 import { useMailStore } from '@/stores/mail';
@@ -481,47 +478,82 @@ function handleMailDrop(event) {
 </script>
 
 <style scoped lang="scss">
-.drawer-shell { display: flex; flex-direction: column; height: 100%; gap: 14px; }
-.assistant-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; h3 { margin: 4px 0 0; font-size: 20px; color: #303133; } }
-.assistant-subtitle { margin: 6px 0 0; font-size: 13px; color: #7a8596; }
-.assistant-eyebrow { font-size: 12px; letter-spacing: 0.06em; color: #1a73e8; font-weight: 600; }
-.header-actions { display: flex; align-items: center; gap: 4px; }
-.context-card { padding: 14px 16px; border: 1px solid #e8eef7; border-radius: 16px; background: linear-gradient(145deg, #f8fbff 0%, #eef5ff 100%); transition: all 0.2s ease; &.is-drop-target { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.12); } }
-.context-label { font-size: 12px; color: #909399; }
-.context-title { margin-top: 6px; font-size: 16px; font-weight: 600; color: #303133; line-height: 1.4; }
-.context-meta { margin-top: 6px; font-size: 13px; color: #606266; }
-.context-status { display: flex; gap: 8px; margin-top: 12px; }
-.drop-tip { margin-top: 10px; font-size: 12px; color: #7a8596; }
+.ai-assistant-panel {
+  height: 100%;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.drawer-shell { display: flex; flex-direction: column; height: 100%; gap: 14px; overflow: hidden; }
+
+.assistant-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid #f1f3f4;
+  padding-bottom: 12px;
+  
+  .header-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .close-panel-btn {
+    color: #5f6368;
+    &:hover {
+      background-color: rgba(60,64,67,0.08);
+    }
+  }
+
+  .header-title-area {
+    h3 { margin: 4px 0 0; font-size: 18px; color: #1f1f1f; font-weight: 500; }
+  }
+}
+
+.assistant-subtitle { margin: 4px 0 0; font-size: 12px; color: #5f6368; line-height: 1.4; }
+.assistant-eyebrow { font-size: 11px; letter-spacing: 0.06em; color: #0b57d0; font-weight: 600; text-transform: uppercase; }
+.header-actions { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.context-card { padding: 12px 14px; border: 1px solid #e0e2e6; border-radius: 12px; background: #f8fafd; transition: all 0.2s ease; &.is-drop-target { border-color: #0b57d0; box-shadow: 0 0 0 2px rgba(11,87,208,0.12); } }
+.context-label { font-size: 11px; color: #5f6368; }
+.context-title { margin-top: 4px; font-size: 14px; font-weight: 500; color: #1f1f1f; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.context-meta { margin-top: 4px; font-size: 12px; color: #444746; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.context-status { display: flex; gap: 8px; margin-top: 8px; }
+.drop-tip { margin-top: 8px; font-size: 11px; color: #5f6368; }
 .drawer-alert { margin-bottom: -2px; }
-.history-card { padding: 12px 14px; border: 1px solid #edf0f5; border-radius: 14px; background: #fcfdff; }
-.history-header { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: #303133; }
-.history-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-.history-item { padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid #eef2f7; }
-.history-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: #909399; }
-.history-kind { color: #1a73e8; font-weight: 600; }
-.history-content { margin-top: 4px; font-size: 13px; color: #606266; line-height: 1.5; }
-.message-list { flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 12px; }
+.history-card { padding: 10px 12px; border: 1px solid #e0e2e6; border-radius: 10px; background: #ffffff; }
+.history-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 500; color: #1f1f1f; }
+.history-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.history-item { padding: 8px 10px; border-radius: 8px; background: #f8fafd; border: 1px solid #f1f3f4; }
+.history-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 11px; color: #5f6368; }
+.history-kind { color: #0b57d0; font-weight: 500; }
+.history-content { margin-top: 4px; font-size: 12px; color: #444746; line-height: 1.4; }
+.message-list { flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 12px; margin: 8px 0; }
 .message-row { display: flex; &.is-user { justify-content: flex-end; } &.is-assistant, &.is-system { justify-content: flex-start; } }
-.message-bubble { max-width: 88%; padding: 12px 14px; border-radius: 18px; background: #f5f7fa; color: #303133; line-height: 1.6; box-shadow: 0 10px 24px rgba(31,45,61,0.06); }
-.message-row.is-user .message-bubble { background: linear-gradient(135deg, #1a73e8 0%, #4f8ff7 100%); color: #fff; border-bottom-right-radius: 8px; }
-.message-row.is-assistant .message-bubble, .message-row.is-system .message-bubble { border-bottom-left-radius: 8px; }
-.message-bubble.is-loading { display: inline-flex; gap: 6px; align-items: center; }
-.typing-dot { width: 8px; height: 8px; border-radius: 50%; background: #7f8ea3; animation: pulse 1.2s infinite ease-in-out; }
+.message-bubble { max-width: 90%; padding: 10px 12px; border-radius: 16px; background: #f1f3f4; color: #1f1f1f; line-height: 1.5; font-size: 13px; }
+.message-row.is-user .message-bubble { background: #d3e3fd; color: #041e49; border-bottom-right-radius: 4px; }
+.message-row.is-assistant .message-bubble, .message-row.is-system .message-bubble { border-bottom-left-radius: 4px; border: 1px solid #e0e2e6; background: #ffffff; }
+.message-bubble.is-loading { display: inline-flex; gap: 6px; align-items: center; padding: 10px 16px; }
+.typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #5f6368; animation: pulse 1.2s infinite ease-in-out; }
 .typing-dot:nth-child(2) { animation-delay: .15s; }
 .typing-dot:nth-child(3) { animation-delay: .3s; }
 .message-text { white-space: pre-wrap; word-break: break-word; }
-.assistant-controls { display: flex; flex-direction: column; gap: 10px; }
-.tone-select { width: 160px; }
-.quick-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.suggestion-list, .task-list { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
-.suggestion-item, .task-item { padding: 12px; border-radius: 14px; background: rgba(255,255,255,.9); border: 1px solid #e8eef7; }
-.suggestion-text { color: #303133; line-height: 1.6; }
-.suggestion-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
-.task-title { display: flex; align-items: center; gap: 10px; color: #303133; font-weight: 600; }
-.task-index { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; background: #1a73e8; color: #fff; font-size: 12px; }
-.task-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 13px; color: #606266; }
-.composer { display: flex; flex-direction: column; gap: 10px; }
+.assistant-controls { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #f1f3f4; padding-top: 12px; }
+.tone-select { width: 120px; }
+.quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.suggestion-list, .task-list { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.suggestion-item, .task-item { padding: 10px; border-radius: 10px; background: #f8fafd; border: 1px solid #e0e2e6; }
+.suggestion-text { color: #1f1f1f; line-height: 1.5; font-size: 12px; }
+.suggestion-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.task-title { display: flex; align-items: center; gap: 8px; color: #1f1f1f; font-weight: 500; font-size: 13px; }
+.task-index { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 50%; background: #0b57d0; color: #fff; font-size: 11px; }
+.task-meta { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 12px; color: #444746; }
+.composer { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #f1f3f4; padding-top: 12px; }
 .composer-actions { display: flex; align-items: center; justify-content: space-between; }
-.composer-tip { font-size: 12px; color: #909399; }
+.composer-tip { font-size: 11px; color: #5f6368; }
 @keyframes pulse { 0%,80%,100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
 </style>
