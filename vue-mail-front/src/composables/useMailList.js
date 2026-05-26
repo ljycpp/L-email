@@ -92,6 +92,21 @@ export function useMailList(fetchListApi, deleteApi, options = {}) {
     return multipleSelection.value.map(item => item.id);
   }
 
+  function resolveBoxType(row) {
+    if (typeof options.resolveBoxType === 'function') {
+      return options.resolveBoxType(row);
+    }
+    return options.boxType;
+  }
+
+  function getSelectedBoxType() {
+    if (!multipleSelection.value.length) {
+      return options.boxType;
+    }
+    const types = [...new Set(multipleSelection.value.map(row => resolveBoxType(row)).filter(Boolean))];
+    return types.length === 1 ? types[0] : options.boxType;
+  }
+
   async function handleDelete(confirmText = '将选中的 {count} 封邮件移入回收站？') {
     if (!deleteApi) {
       return;
@@ -102,7 +117,7 @@ export function useMailList(fetchListApi, deleteApi, options = {}) {
       return;
     }
     await ElMessageBox.confirm(confirmText.replace('{count}', count), '提示', { type: 'warning' });
-    await deleteApi(getSelectedIds());
+    await deleteApi(getSelectedIds(), getSelectedBoxType());
     ElMessage.success('已移入回收站。');
     await loadList();
   }
@@ -118,7 +133,7 @@ export function useMailList(fetchListApi, deleteApi, options = {}) {
       return;
     }
     await ElMessageBox.confirm(`确认恢复选中的 ${count} 封邮件吗？`, '提示', { type: 'warning' });
-    await restoreApi(getSelectedIds());
+    await restoreApi(getSelectedIds(), getSelectedBoxType());
     ElMessage.success('邮件已恢复。');
     await loadList();
   }
@@ -138,7 +153,7 @@ export function useMailList(fetchListApi, deleteApi, options = {}) {
       '警告',
       { type: 'warning' }
     );
-    await permanentApi(getSelectedIds());
+    await permanentApi(getSelectedIds(), getSelectedBoxType());
     ElMessage.success('邮件已彻底删除。');
     await loadList();
   }
@@ -149,7 +164,7 @@ export function useMailList(fetchListApi, deleteApi, options = {}) {
       ElMessage.warning('请先选择至少一封邮件。');
       return;
     }
-    await labelApi.toggleStar(ids);
+    await labelApi.toggleStar(ids, row ? resolveBoxType(row) : getSelectedBoxType());
     if (row) {
       row.isStar = !row.isStar;
     }
@@ -167,7 +182,7 @@ export function useMailList(fetchListApi, deleteApi, options = {}) {
       ElMessage.warning('请先选择至少一封邮件。');
       return;
     }
-    await labelApi.mark(labelId, ids);
+    await labelApi.mark(labelId, ids, getSelectedBoxType());
     ElMessage.success('标签已更新。');
     await loadList();
   }

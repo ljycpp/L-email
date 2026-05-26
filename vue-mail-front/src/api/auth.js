@@ -15,3 +15,7 @@ export function logout() {
 export function getInfo(token) {
   return request.get('/user/info', { params: { token } });
 }
+
+export function updateInfo(data) {
+  return request.put('/user/info', data);
+}

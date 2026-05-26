@@ -2,7 +2,7 @@ import request from '@/utils/request';
 
 export const inboxApi = {
   list: params => request.get('/inbox/list', { params }),
-  delete: ids => request.post('/mail/delete', { ids }),
+  delete: (ids, boxType = 'INBOX') => request.post('/mail/delete', { ids, boxType }),
   unreadCount: () => request.get('/inbox/unread_count'),
   markAllRead: () => request.post('/inbox/mark_all_read')
 };
@@ -19,24 +19,25 @@ export const mailActionApi = {
 
 export const outboxApi = {
   list: params => request.get('/outbox/list', { params }),
-  delete: ids => request.post('/mail/delete', { ids })
+  delete: (ids, boxType = 'OUTBOX') => request.post('/mail/delete', { ids, boxType })
 };
 
 export const draftApi = {
   list: params => request.get('/draftbox/list', { params }),
-  delete: ids => request.post('/mail/delete', { ids })
+  delete: (ids, boxType = 'DRAFT') => request.post('/mail/delete', { ids, boxType })
 };
 
 export const mailListApi = {
   list: params => request.get('/mail_list', { params }),
-  delete: ids => request.post('/mail/delete', { ids }),
-  restore: ids => request.post('/mail/restore', { ids }),
-  deletePermanently: ids => request.post('/mail/delete_permanently', { ids })
+  delete: (ids, boxType) => request.post('/mail/delete', { ids, boxType }),
+  restore: (ids, boxType) => request.post('/mail/restore', { ids, boxType }),
+  deletePermanently: (ids, boxType) => request.post('/mail/delete_permanently', { ids, boxType })
 };
 
 export const mailDetailApi = {
   get: params => request.get('/mail_detail', { params }),
-  delete: ids => request.post('/mail/delete', { ids })
+  delete: (ids, boxType) => request.post('/mail/delete', { ids, boxType }),
+  markRead: id => request.put(`/api/mails/${id}/read`)
 };
 
 export const mailSendApi = {
@@ -46,11 +47,11 @@ export const mailSendApi = {
 
 export const labelApi = {
   list: () => request.get('/mail_label/list'),
-  add: data => request.post('/api/labels', data),
-  edit: data => request.put(`/api/labels/${data.id}`, data),
-  remove: id => request.delete(`/api/labels/${id}`),
-  toggleStar: ids => request.post('/mail_label/toggle_star', { ids }),
-  mark: (labelId, mailIds) => request.post('/mail_label/mark', { labelId: Number(labelId), mailIds })
+  add: data => request.post('/mail_label', data),
+  edit: data => request.put(`/mail_label/${data.id}`, data),
+  remove: id => request.delete(`/mail_label/${id}`),
+  toggleStar: (ids, boxType) => request.post('/mail_label/toggle_star', { ids, boxType }),
+  mark: (labelId, mailIds, boxType) => request.post('/mail_label/mark', { labelId: Number(labelId), mailIds, boxType })
 };
 
 export const contactApi = {

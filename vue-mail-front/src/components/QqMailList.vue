@@ -100,7 +100,7 @@
           class="mail-row"
           :class="{ unread: row.status === 0, selected: isSelected(row) }"
           draggable="true"
-          @click="openDetail(row.id)"
+          @click="openDetail(row)"
           @contextmenu.prevent="openContextMenu($event, row)"
           @dragstart="event => handleDragStart(event, row)"
         >
@@ -201,7 +201,14 @@
       </div>
     </div>
 
-    <el-empty v-else-if="!loading" :description="emptyText" class="qq-empty" />
+    <el-empty v-if="!loading && !list.length" :description="emptyTitle" class="qq-empty" :image-size="96">
+      <template #image>
+        <div class="empty-illustration">
+          <el-icon><Message /></el-icon>
+        </div>
+      </template>
+      <p v-if="emptyDescription" class="empty-description">{{ emptyDescription }}</p>
+    </el-empty>
 
     <div class="qq-pagination">
       <el-pagination
@@ -224,11 +231,13 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowDown, ChatDotRound, CollectionTag, Delete, Message, Paperclip, Search, Star, StarFilled, Filter } from '@element-plus/icons-vue';
+import { mailDetailApi } from '@/api/mail';
 import { useMailList } from '@/composables/useMailList';
 import { useMailStore } from '@/stores/mail';
 import { useAiStore } from '@/stores/ai';
 import { useNotificationStore } from '@/stores/notification';
 import { formatMailDate, groupMailsByDate } from '@/utils/mailGroup';
+import { clearMailListCaches } from '@/utils/mailCache';
 import MailMarkDropdown from '@/components/MailMarkDropdown.vue';
 import SpamFilterSwitch from '@/components/SpamFilterSwitch.vue';
 import PriorityFilterSwitch from '@/components/PriorityFilterSwitch.vue';
@@ -287,7 +296,9 @@ const {
 } = useMailList(wrappedFetch, props.deleteMail, {
   cacheKey: props.cacheKey,
   restoreApi: props.restoreMail,
-  permanentDeleteApi: props.deletePermanentlyMail
+  permanentDeleteApi: props.deletePermanentlyMail,
+  boxType: operationBoxType(),
+  resolveBoxType: row => operationBoxType(row)
 });
 
 listQuery.limit = 50;
@@ -295,6 +306,11 @@ listQuery.limit = 50;
 const selectAll = ref(false);
 const statusFilter = ref('all');
 const groupedList = computed(() => groupMailsByDate(list.value, props.dateField));
+const emptyTitle = computed(() => props.emptyText || '暂无邮件');
+const emptyDescription = computed(() => {
+  if (activeFilterTags.value.length) return '没有找到符合条件的邮件，可以清空筛选或刷新后再试。';
+  return '';
+});
 const indeterminate = computed(() => {
   const count = multipleSelection.value.length;
   return count > 0 && count < list.value.length;
@@ -317,6 +333,18 @@ const activeFilterTags = computed(() => {
 const formatSpamReason = reason => (!reason ? '' : reason.length > 48 ? `${reason.slice(0, 48)}...` : reason);
 const priorityLabel = level => ({ HIGH: '高优先级', MEDIUM: '中优先级', LOW: '低优先级' }[level] || level);
 const priorityTagType = level => (level === 'HIGH' ? 'danger' : level === 'LOW' ? 'info' : 'warning');
+
+function operationBoxType(row) {
+  if (props.isTrash && !row) return undefined;
+  const type = row?.type || props.mailType;
+  if (type === 'send') return 'OUTBOX';
+  if (type === 'draft') return 'DRAFT';
+  if (type === 'receive') return 'INBOX';
+  if (props.mailType === 'send') return 'OUTBOX';
+  if (props.mailType === 'draft') return 'DRAFT';
+  if (props.mailType === 'receive') return 'INBOX';
+  return undefined;
+}
 
 function formatRowName(row) {
   if (props.rowDisplay === 'recipient') {
@@ -363,6 +391,9 @@ onBeforeUnmount(() => {
 
 watch(total, () => emit('loaded', { total: total.value }));
 watch(() => [notificationStore.inboxTick, notificationStore.highPriorityTick], () => {
+  if (props.mailType === 'receive' && !props.isTrash && !props.showNotSpam) loadList();
+});
+watch(() => notificationStore.readTick, () => {
   if (props.mailType === 'receive' && !props.isTrash && !props.showNotSpam) loadList();
 });
 watch(() => notificationStore.spamTick, () => {
@@ -434,7 +465,9 @@ function resetFilters() {
   search();
 }
 
-function openDetail(id) {
+async function openDetail(row) {
+  const id = row?.id;
+  if (!id) return;
   if (props.openMode === 'draft') {
     mailStore.setDraftId(id);
     mailStore.setMailId(null);
@@ -443,9 +476,32 @@ function openDetail(id) {
     router.push('/mail_send');
     return;
   }
+  await markRowReadBeforeOpen(row);
   mailStore.setMailId(id);
   mailStore.setMailType(props.mailType);
   router.push('/mail_detail');
+}
+
+async function markRowReadBeforeOpen(row) {
+  if (!shouldMarkRowRead(row)) {
+    return;
+  }
+  row.status = 1;
+  clearMailListCaches();
+  try {
+    await mailDetailApi.markRead(row.id);
+    notificationStore.onReadStateChanged();
+  } catch (error) {
+    row.status = 0;
+    ElMessage.warning('标记已读失败，详情页会再次尝试同步。');
+  }
+}
+
+function shouldMarkRowRead(row) {
+  return props.mailType === 'receive'
+    && !props.isTrash
+    && !props.showNotSpam
+    && Number(row?.status) === 0;
 }
 
 async function doDelete() {
@@ -488,7 +544,7 @@ function hideContextMenu() {
   contextMenu.row = null;
 }
 
-const handleContextDetail = () => { if (contextMenu.row) openDetail(contextMenu.row.id); hideContextMenu(); };
+const handleContextDetail = () => { if (contextMenu.row) openDetail(contextMenu.row); hideContextMenu(); };
 const handleContextAi = () => { if (contextMenu.row) openAi(contextMenu.row); hideContextMenu(); };
 const handleContextAiSummary = () => { if (contextMenu.row) openAiWithAction(contextMenu.row, 'summary'); hideContextMenu(); };
 const handleContextAiReply = () => { if (contextMenu.row) openAiWithAction(contextMenu.row, 'reply'); hideContextMenu(); };
@@ -566,39 +622,39 @@ defineExpose({ refresh });
 </script>
 
 <style scoped lang="scss">
-.qq-inbox { height: 100%; display: flex; flex-direction: column; background: #fff; }
+.qq-inbox { height: 100%; display: flex; flex-direction: column; background: var(--color-bg-card); }
 .filter-tags {
   display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
-  padding: 6px 16px; border-bottom: 1px solid #f0f0f0; background: #fafbfc;
-  .filter-tags-label { font-size: 12px; color: #909399; }
+  padding: 8px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-page);
+  .filter-tags-label { font-size: 12px; color: var(--color-text-muted); }
 }
 
 .qq-toolbar {
-  display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
-  border-bottom: 1px solid #f1f3f4; flex-shrink: 0; background: #ffffff;
+  display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border); flex-shrink: 0; background: var(--color-bg-card);
   .toolbar-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-  .folder-title { font-size: 16px; font-weight: 500; color: #1f1f1f; margin: 0 16px 0 8px; white-space: nowrap; }
+  .folder-title { font-size: 23px; font-weight: 700; color: var(--color-text-main); margin: 0 18px 0 8px; white-space: nowrap; }
   
   .toolbar-btn {
-    color: #444746;
+    color: var(--color-text-secondary);
     font-size: 13px;
     height: 32px;
     padding: 0 12px;
-    border-radius: 4px;
+    border-radius: 10px;
     margin: 0;
     font-weight: 500;
     &:hover {
-      background-color: rgba(60,64,67,0.06);
-      color: #1f1f1f;
+      background-color: var(--color-hover);
+      color: var(--color-primary);
     }
     &.danger:hover {
-      color: #b00020;
-      background-color: rgba(176,0,32,0.06);
+      color: #e11d48;
+      background-color: #fff1f2;
     }
   }
   
   .toolbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .mail-count { font-size: 13px; color: #5f6368; white-space: nowrap; }
+  .mail-count { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 }
 
 .advanced-filter-panel {
@@ -608,48 +664,66 @@ defineExpose({ refresh });
     justify-content: flex-end;
     gap: 8px;
     margin-top: 12px;
-    border-top: 1px solid #f1f3f4;
+    border-top: 1px solid var(--color-border);
     padding-top: 12px;
   }
 }
 
 .qq-mail-list { flex: 1; overflow-y: auto; }
-.mail-group .group-header { padding: 8px 16px 4px; font-size: 12px; color: #909399; background: #fafafa; border-bottom: 1px solid #f5f5f5; }
+.mail-group .group-header { padding: 10px 18px 6px; font-size: 12px; color: var(--color-text-muted); background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); }
 .mail-row {
-  display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 44px; border-bottom: 1px solid #f1f3f4; cursor: pointer; transition: background 0.15s;
-  background: #ffffff;
-  &:hover { background: #f2f6fc; }
-  &.selected { background: #c2e7ff; }
+  display: flex; align-items: center; gap: 10px; padding: 0 18px; min-height: 48px; border-bottom: 1px solid var(--color-border); cursor: pointer; transition: background 0.15s, box-shadow 0.15s;
+  background: var(--color-bg-card);
+  &:hover { background: var(--color-hover); }
+  &.selected { background: var(--color-primary-light); }
   
   &.unread {
-    .row-sender, .row-subject { font-weight: 700; color: #1f1f1f; }
-    .row-date { font-weight: 700; color: #0b57d0; }
+    .row-sender, .row-subject { font-weight: 700; color: var(--color-text-main); }
+    .row-date { font-weight: 700; color: var(--color-primary); }
   }
   
-  .row-sender { flex-shrink: 0; width: 140px; font-size: 14px; color: #444746; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-sender { flex-shrink: 0; width: 148px; font-size: 15px; font-weight: 600; color: var(--color-text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row-content { flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; white-space: nowrap; }
-  .row-subject { flex-shrink: 0; max-width: 40%; font-size: 14px; color: #1f1f1f; overflow: hidden; text-overflow: ellipsis; }
-  .row-snippet { font-size: 13px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; }
+  .row-subject { flex-shrink: 0; max-width: 42%; font-size: 15px; font-weight: 600; color: var(--color-text-main); overflow: hidden; text-overflow: ellipsis; }
+  .row-snippet { font-size: 14px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; }
   .row-priority-tag { margin-left: 8px; vertical-align: middle; }
-  .row-spam-reason { display: block; font-size: 11px; color: #b06000; margin-top: 2px; line-height: 1.3; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row-tag { margin-left: 6px; flex-shrink: 0; background: transparent; }
-  .row-date { flex-shrink: 0; width: 88px; text-align: right; font-size: 12px; color: #5f6368; }
+  .row-spam-reason { display: block; font-size: 11px; color: #b45309; margin-top: 2px; line-height: 1.3; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-tag { margin-left: 6px; flex-shrink: 0; background: #ffffff; border-radius: 999px; font-size: 12px; font-weight: 500; }
+  .row-date { flex-shrink: 0; width: 88px; text-align: right; font-size: 12px; color: var(--color-text-secondary); }
   .row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .row-action-icon, .row-star { flex-shrink: 0; font-size: 16px; color: #5f6368; cursor: pointer; &:hover { color: #0b57d0; } }
-  .row-action-icon.danger:hover { color: #b00020; }
-  .row-star { color: #dcdfe6; &.active, &:hover { color: #e6a23c; } }
-  .row-icon.is-unread { color: #0b57d0; }
+  .row-action-icon, .row-star { flex-shrink: 0; font-size: 18px; color: var(--color-text-secondary); cursor: pointer; &:hover { color: var(--color-primary); } }
+  .row-action-icon.danger:hover { color: #e11d48; }
+  .row-star { color: #cbd5e1; &.active, &:hover { color: #f59e0b; } }
+  .row-icon { color: var(--color-text-muted); }
+  .row-icon.is-unread { color: var(--color-primary); }
 }
-.qq-empty { flex: 1; }
-.qq-pagination { padding: 8px 16px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; flex-shrink: 0; }
-.mail-context-menu { position: fixed; z-index: 3000; min-width: 168px; padding: 8px 0; background: #fff; border: 1px solid #e6ebf5; border-radius: 12px; box-shadow: 0 16px 30px rgba(31, 45, 61, 0.18); }
-.context-menu-group { border-top: 1px solid #eef2f7; margin-top: 6px; padding-top: 6px; }
-.context-menu-label { padding: 4px 16px; font-size: 12px; color: #909399; }
+.qq-empty { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.empty-illustration {
+  width: 96px;
+  height: 96px;
+  border-radius: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  .el-icon { font-size: 42px; }
+}
+.empty-description {
+  margin: -4px 0 16px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+.qq-pagination { padding: 10px 18px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; flex-shrink: 0; background: var(--color-bg-card); }
+.mail-context-menu { position: fixed; z-index: 3000; min-width: 168px; padding: 8px 0; background: #fff; border: 1px solid var(--color-border); border-radius: 12px; box-shadow: var(--shadow-float); }
+.context-menu-group { border-top: 1px solid var(--color-border); margin-top: 6px; padding-top: 6px; }
+.context-menu-label { padding: 4px 16px; font-size: 12px; color: var(--color-text-muted); }
 .label-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 8px; }
-.context-menu-item.danger { color: #f56c6c; }
+.context-menu-item.danger { color: #e11d48; }
 .context-menu-item {
   display: block; width: 100%; padding: 10px 16px; border: none; background: transparent;
-  text-align: left; font-size: 14px; color: #303133; cursor: pointer;
-  &:hover { background: #f5f9ff; color: #1a73e8; }
+  text-align: left; font-size: 14px; color: var(--color-text-main); cursor: pointer;
+  &:hover { background: var(--color-hover); color: var(--color-primary); }
 }
 </style>

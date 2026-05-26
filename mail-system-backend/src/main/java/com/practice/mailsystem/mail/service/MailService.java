@@ -38,9 +38,15 @@ public interface MailService {
 
     void deleteMails(Iterable<Long> mailIds);
 
+    void deleteMails(Iterable<Long> mailIds, String boxType);
+
     void undoDeleteMails(Iterable<Long> mailIds);
 
+    void undoDeleteMails(Iterable<Long> mailIds, String boxType);
+
     void deletePermanently(Iterable<Long> mailIds);
+
+    void deletePermanently(Iterable<Long> mailIds, String boxType);
 
     void markRead(Long mailId);
 
@@ -48,7 +54,11 @@ public interface MailService {
 
     void toggleStars(Iterable<Long> mailIds);
 
+    void toggleStars(Iterable<Long> mailIds, String boxType);
+
     void markLabel(Long labelId, Iterable<Long> mailIds);
+
+    void markLabel(Long labelId, Iterable<Long> mailIds, String boxType);
 
     void markAllInboxRead();
 

@@ -456,7 +456,7 @@ function historyKindLabel(kind) {
 }
 
 function goSettings() {
-  router.push('/ai-settings');
+  router.push('/settings');
 }
 
 function handleClosed() {

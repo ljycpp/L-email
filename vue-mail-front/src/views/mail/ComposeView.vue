@@ -72,7 +72,7 @@
       </div>
 
       <div class="compose-editor">
-        <QuillEditor v-model:content="mail.content" content-type="html" theme="snow" :options="editorOptions" />
+        <QuillEditor ref="editorRef" v-model:content="mail.content" content-type="html" theme="snow" :options="editorOptions" />
       </div>
 
       <div class="compose-footer">发件人：{{ userStore.name || '当前用户' }}</div>
@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Close, Document, Paperclip } from '@element-plus/icons-vue';
@@ -105,6 +105,7 @@ const loading = ref(false);
 const sending = ref(false);
 const showCc = ref(false);
 const fileInputRef = ref(null);
+const editorRef = ref(null);
 const target = ref([]);
 const copy = ref([]);
 const fileList = ref([]);
@@ -123,11 +124,49 @@ const mail = reactive({ title: '', content: '' });
 const editorOptions = {
   placeholder: '在这里输入邮件正文',
   modules: {
-    toolbar: [['bold', 'italic', 'underline', 'strike'], [{ color: [] }, { background: [] }], [{ header: [1, 2, 3, false] }], [{ align: [] }], [{ list: 'ordered' }, { list: 'bullet' }], ['blockquote', 'code-block'], ['link'], ['clean']]
+    toolbar: [
+      [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+      [{ header: [1, 2, 3, 4, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ color: [] }, { background: [] }],
+      [{ script: 'sub' }, { script: 'super' }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ indent: '-1' }, { indent: '+1' }],
+      [{ align: [] }, { direction: 'rtl' }],
+      ['blockquote', 'code-block'],
+      ['link', 'image'],
+      ['clean']
+    ]
   }
 };
 
-onMounted(() => initPage());
+const toolbarTitles = {
+  bold: '加粗',
+  italic: '斜体',
+  underline: '下划线',
+  strike: '删除线',
+  blockquote: '引用',
+  'code-block': '代码块',
+  link: '插入链接',
+  image: '插入图片',
+  clean: '清除格式',
+  color: '文字颜色',
+  background: '背景颜色',
+  font: '字体',
+  size: '字号',
+  header: '标题级别',
+  align: '对齐方式',
+  direction: '文字方向',
+  script: value => (value === 'sub' ? '下标' : '上标'),
+  list: value => (value === 'ordered' ? '编号列表' : '项目符号列表'),
+  indent: value => (value === '-1' ? '减少缩进' : '增加缩进')
+};
+
+onMounted(async () => {
+  await initPage();
+  await nextTick();
+  applyEditorToolbarTooltips();
+});
 
 async function initPage() {
   loading.value = true;
@@ -136,7 +175,9 @@ async function initPage() {
     await loadDraftOrReply();
     applyAiDraft();
     if (mailStore.target) {
-      target.value = dedupeRecipients(mailStore.target);
+      const presetTargets = dedupeRecipients(mailStore.target);
+      ensureRecipientOptions(presetTargets);
+      target.value = presetTargets;
       mailStore.setTarget(null);
     }
   } finally {
@@ -180,6 +221,7 @@ async function loadDraftOrReply() {
   const { data } = await mailDetailApi.get({ mailId, mailType });
   const originalTargets = mapParty(data.target);
   const originalCopies = mapParty(data.copy);
+  ensureRecipientOptions([...originalTargets, ...originalCopies]);
   mail.title = data.title || '';
   mail.content = data.content || '';
   fileList.value = [];
@@ -239,6 +281,16 @@ function withPrefix(title, prefix) {
   return title?.startsWith(prefix) ? title : `${prefix}${title || ''}`;
 }
 function mapParty(list = []) { return list.map(person => ({ ...person, show: `${person.name}<${person.mail}>` })); }
+function ensureRecipientOptions(list = []) {
+  const existing = new Set(contactOptions.value.map(item => item.mail));
+  for (const item of list) {
+    const email = typeof item === 'string' ? item : item.mail;
+    if (!email || existing.has(email)) continue;
+    const name = typeof item === 'string' ? item : (item.name || item.mail);
+    contactOptions.value.push({ name, mail: email, show: `${name}<${email}>` });
+    existing.add(email);
+  }
+}
 function dedupeRecipients(list = []) {
   const seen = new Set();
   const output = [];
@@ -261,6 +313,40 @@ function applyAiDraft() {
 function toParagraphHtml(text) {
   const safe = String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return `<p>${safe.replace(/\n/g, '<br>')}</p>`;
+}
+
+function applyEditorToolbarTooltips() {
+  const toolbar = document.querySelector('.compose-editor .ql-toolbar');
+  if (!toolbar) return;
+
+  toolbar.querySelectorAll('button').forEach(button => {
+    const name = Array.from(button.classList)
+      .find(className => className.startsWith('ql-'))
+      ?.replace('ql-', '');
+    const title = resolveToolbarTitle(name, button.value);
+    if (title) {
+      button.setAttribute('title', title);
+      button.setAttribute('aria-label', title);
+    }
+  });
+
+  toolbar.querySelectorAll('.ql-picker, select').forEach(control => {
+    const name = Array.from(control.classList)
+      .find(className => className.startsWith('ql-'))
+      ?.replace('ql-', '');
+    const title = resolveToolbarTitle(name);
+    if (title) {
+      control.setAttribute('title', title);
+      control.setAttribute('aria-label', title);
+      control.querySelector?.('.ql-picker-label')?.setAttribute('title', title);
+    }
+  });
+}
+
+function resolveToolbarTitle(name, value = '') {
+  const entry = toolbarTitles[name];
+  if (typeof entry === 'function') return entry(value);
+  return entry || '';
 }
 
 function triggerUpload() { fileInputRef.value?.click(); }
@@ -340,7 +426,7 @@ async function send() {
   }
   sending.value = true;
   try {
-    await mailSendApi.send(buildFormData(false));
+    await mailSendApi.send(buildFormData(true));
     ElMessage.success('邮件已发送。');
     mailStore.clearComposeContext();
     router.push('/outbox');
@@ -373,6 +459,6 @@ async function saveDraft() {
 .compose-row { display: flex; align-items: center; min-height: 44px; padding: 0 16px; border-bottom: 1px solid #f0f0f0; .row-label { flex-shrink: 0; width: 72px; font-size: 14px; color: #909399; line-height: 44px; } .row-control { flex: 1; min-width: 0; } .row-link { flex-shrink: 0; margin-left: 12px; padding: 0; border: none; background: none; font-size: 13px; color: #1a73e8; cursor: pointer; line-height: 44px; &:hover { text-decoration: underline; } } :deep(.el-select) .el-select__wrapper { box-shadow: none !important; border: none; padding-left: 0; background: transparent; } :deep(.el-input__wrapper) { box-shadow: none !important; border: none; padding-left: 0; background: transparent; } }
 .group-picker { max-width: 320px; }
 .compose-attachments { display: flex; align-items: flex-start; padding: 10px 16px; border-bottom: 1px solid #f0f0f0; background: #fafcff; .attach-label { flex-shrink: 0; width: 72px; font-size: 14px; color: #909399; line-height: 28px; } .attach-panel { flex: 1; display: flex; flex-direction: column; gap: 8px; } .attach-summary { font-size: 12px; color: #909399; } .attach-list { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; } .attach-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #fff; border: 1px solid #dce6f5; border-radius: 4px; font-size: 13px; color: #303133; } .attach-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .attach-size { color: #909399; font-size: 12px; } .attach-remove { cursor: pointer; color: #909399; &:hover { color: #f56c6c; } } }
-.compose-editor { :deep(.quill-editor) { display: flex; flex-direction: column; } :deep(.ql-toolbar.ql-snow) { order: 0; border: none; border-bottom: 1px solid #f0f0f0; background: #fafafa; padding: 8px 12px; font-family: inherit; } :deep(.ql-container.ql-snow) { order: 1; border: none; font-size: 14px; } :deep(.ql-editor) { min-height: 380px; padding: 20px 24px; line-height: 1.7; color: #303133; &.ql-blank::before { color: #c0c4cc; font-style: normal; left: 24px; } } }
+.compose-editor { :deep(.quill-editor) { display: flex; flex-direction: column; } :deep(.ql-toolbar.ql-snow) { order: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; border: none; border-bottom: 1px solid #f0f0f0; background: #fafafa; padding: 8px 12px; font-family: inherit; } :deep(.ql-toolbar.ql-snow .ql-formats) { display: inline-flex; align-items: center; gap: 2px; margin-right: 8px; padding-right: 8px; border-right: 1px solid #e4e7ed; } :deep(.ql-toolbar.ql-snow .ql-formats:last-child) { border-right: none; } :deep(.ql-toolbar.ql-snow button) { border-radius: 4px; } :deep(.ql-toolbar.ql-snow button:hover), :deep(.ql-toolbar.ql-snow .ql-picker-label:hover) { background: #eef4ff; color: #1a73e8; } :deep(.ql-container.ql-snow) { order: 1; border: none; font-size: 14px; } :deep(.ql-editor) { min-height: 380px; padding: 20px 24px; line-height: 1.7; color: #303133; &.ql-blank::before { color: #c0c4cc; font-style: normal; left: 24px; } } }
 .compose-footer { padding: 10px 16px; font-size: 12px; color: #909399; border-top: 1px solid #f0f0f0; background: #fafafa; }
 </style>

@@ -32,17 +32,17 @@ const emit = defineEmits(['mark']);
 
 <style scoped lang="scss">
 .toolbar-btn {
-  color: #444746;
+  color: var(--color-text-secondary);
   font-size: 13px;
   height: 32px;
   padding: 0 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   font-weight: 500;
   border: none;
   
   &:hover {
-    background-color: rgba(60, 64, 67, 0.06);
-    color: #1f1f1f;
+    background-color: var(--color-hover);
+    color: var(--color-primary);
   }
 }
 .label-dot {

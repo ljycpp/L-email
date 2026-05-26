@@ -88,19 +88,19 @@ public class MailController {
 
     @PostMapping("/api/mails/batch-delete")
     public ApiResponse<Void> batchDelete(@Valid @RequestBody BatchIdsRequest request) {
-        mailService.deleteMails(request.ids());
+        mailService.deleteMails(request.ids(), request.boxType());
         return ApiResponse.ok();
     }
 
     @PostMapping("/api/mails/batch-restore")
     public ApiResponse<Void> batchRestore(@Valid @RequestBody BatchIdsRequest request) {
-        mailService.undoDeleteMails(request.ids());
+        mailService.undoDeleteMails(request.ids(), request.boxType());
         return ApiResponse.ok();
     }
 
     @PostMapping("/api/mails/labels/mark")
     public ApiResponse<Void> markLabel(@Valid @RequestBody LabelMarkRequest request) {
-        mailService.markLabel(request.labelId(), request.mailIds());
+        mailService.markLabel(request.labelId(), request.mailIds(), request.boxType());
         return ApiResponse.ok();
     }
 
@@ -185,31 +185,31 @@ public class MailController {
 
     @PostMapping("/mail_label/toggle_star")
     public String toggleStarLegacy(@Valid @RequestBody BatchIdsRequest request) {
-        mailService.toggleStars(request.ids());
+        mailService.toggleStars(request.ids(), request.boxType());
         return "success";
     }
 
     @PostMapping("/mail_label/mark")
     public String markLabelLegacy(@Valid @RequestBody LabelMarkRequest request) {
-        mailService.markLabel(request.labelId(), request.mailIds());
+        mailService.markLabel(request.labelId(), request.mailIds(), request.boxType());
         return "success";
     }
 
     @PostMapping("/mail/delete")
     public String deleteMailLegacy(@Valid @RequestBody BatchIdsRequest request) {
-        mailService.deleteMails(request.ids());
+        mailService.deleteMails(request.ids(), request.boxType());
         return "success";
     }
 
     @PostMapping("/mail/restore")
     public String restoreMailLegacy(@Valid @RequestBody BatchIdsRequest request) {
-        mailService.undoDeleteMails(request.ids());
+        mailService.undoDeleteMails(request.ids(), request.boxType());
         return "success";
     }
 
     @PostMapping("/mail/delete_permanently")
     public String deletePermanentlyLegacy(@Valid @RequestBody BatchIdsRequest request) {
-        mailService.deletePermanently(request.ids());
+        mailService.deletePermanently(request.ids(), request.boxType());
         return "success";
     }
 

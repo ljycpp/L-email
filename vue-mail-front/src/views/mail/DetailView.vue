@@ -145,13 +145,15 @@ import MailAttachmentList from '@/components/MailAttachmentList.vue';
 import MailMarkDropdown from '@/components/MailMarkDropdown.vue';
 import { useAiStore } from '@/stores/ai';
 import { useMailStore } from '@/stores/mail';
+import { useNotificationStore } from '@/stores/notification';
 import { formatTime } from '@/utils/format';
 import { resolveApiUrl } from '@/utils/url';
-import { getMailDetailCache, setMailDetailCache } from '@/utils/mailCache';
+import { clearMailListCaches, getMailDetailCache, setMailDetailCache } from '@/utils/mailCache';
 
 const router = useRouter();
 const mailStore = useMailStore();
 const aiStore = useAiStore();
+const notificationStore = useNotificationStore();
 const loading = ref(false);
 const labelList = ref([]);
 const mailType = ref(mailStore.mailType || 'receive');
@@ -214,8 +216,15 @@ async function load() {
   loading.value = true;
   try {
     const { data } = await mailDetailApi.get({ mailId, mailType: mailType.value });
+    if (isInboxDetail()) {
+      await mailDetailApi.markRead(mailId);
+    }
     applyMailData(mailId, data);
     setMailDetailCache(mailType.value, mailId, data);
+    if (isInboxDetail()) {
+      clearMailListCaches();
+      notificationStore.onReadStateChanged();
+    }
   } catch (error) {
     if (!cached) {
       throw error;
@@ -261,13 +270,13 @@ function goCompose(pageType) {
 
 async function remove() {
   await ElMessageBox.confirm('确定将这封邮件移入回收站吗？', '提示', { type: 'warning' });
-  await mailDetailApi.delete([mail.id]);
+  await mailDetailApi.delete([mail.id], detailBoxType());
   ElMessage.success('已移入回收站。');
   router.push(mailType.value === 'send' ? '/outbox' : '/inbox');
 }
 
 async function toggleStar() {
-  await labelApi.toggleStar([mail.id]);
+  await labelApi.toggleStar([mail.id], detailBoxType());
   mail.isStar = !mail.isStar;
 }
 
@@ -276,9 +285,19 @@ async function markMail(labelId) {
     await toggleStar();
     return;
   }
-  await labelApi.mark(labelId, [mail.id]);
+  await labelApi.mark(labelId, [mail.id], detailBoxType());
   ElMessage.success('标签已更新。');
   load();
+}
+
+function detailBoxType() {
+  if (mailType.value === 'send') return 'OUTBOX';
+  if (mailType.value === 'draft') return 'DRAFT';
+  return 'INBOX';
+}
+
+function isInboxDetail() {
+  return detailBoxType() === 'INBOX';
 }
 
 function openAiAssistant() {
@@ -297,7 +316,7 @@ function openAiAssistant() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--color-bg-card);
 }
 
 .detail-toolbar {
@@ -305,37 +324,37 @@ function openAiAssistant() {
   align-items: center;
   gap: 6px;
   padding: 12px 20px;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
-  background: #ffffff;
+  background: var(--color-bg-card);
 
   .toolbar-btn {
-    color: #444746;
+    color: var(--color-text-secondary);
     font-size: 13px;
     height: 32px;
     padding: 0 12px;
-    border-radius: 4px;
+    border-radius: 10px;
     margin: 0;
     font-weight: 500;
     
     &:hover {
-      background-color: rgba(60, 64, 67, 0.06);
-      color: #1f1f1f;
+      background-color: var(--color-hover);
+      color: var(--color-primary);
     }
     
     &.danger:hover {
-      color: #b00020;
-      background-color: rgba(176, 0, 32, 0.06);
+      color: #e11d48;
+      background-color: #fff1f2;
     }
 
     &.ai-btn {
-      color: #0b57d0;
-      border: 1px solid #c2e7ff;
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary-light);
       background-color: #f8faff;
       
       &:hover {
-        background-color: #ecf3fe;
-        color: #0b57d0;
+        background-color: var(--color-primary-light);
+        color: var(--color-primary-hover);
       }
     }
   }
@@ -343,7 +362,7 @@ function openAiAssistant() {
   .toolbar-divider {
     width: 1px;
     height: 20px;
-    background-color: #f1f3f4;
+    background-color: var(--color-border);
     margin: 0 8px;
   }
 }
@@ -351,7 +370,8 @@ function openAiAssistant() {
 .detail-content-area {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 28px 32px;
+  background: var(--color-bg-page);
 }
 
 .spam-reason-alert,
@@ -362,18 +382,23 @@ function openAiAssistant() {
 
 .priority-score {
   margin-left: 8px;
-  color: #909399;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
 .priority-desc {
   margin: 8px 0 0;
-  color: #606266;
+  color: var(--color-text-secondary);
 }
 
 .email-main-body {
   max-width: 900px;
   margin: 0 auto;
+  padding: 28px 32px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
 }
 
 .title-row {
@@ -384,9 +409,9 @@ function openAiAssistant() {
   margin-bottom: 8px;
   
   .mail-subject {
-    font-size: 22px;
-    font-weight: 400;
-    color: #1f1f1f;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-text-main);
     margin: 0;
     line-height: 1.3;
   }
@@ -400,12 +425,12 @@ function openAiAssistant() {
 
 .star {
   cursor: pointer;
-  color: #dcdfe6;
+  color: #cbd5e1;
   font-size: 22px;
   transition: color 0.2s;
   
   &:hover, &.active {
-    color: #e6a23c;
+    color: #f59e0b;
   }
 }
 
@@ -417,9 +442,9 @@ function openAiAssistant() {
   
   .detail-label-tag {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 3px 9px;
     font-size: 12px;
-    border-radius: 4px;
+    border-radius: 999px;
     border: 1px solid;
     font-weight: 500;
   }
@@ -431,11 +456,11 @@ function openAiAssistant() {
   gap: 12px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--color-border);
   
   .sender-avatar {
-    background-color: #e8f0fe;
-    color: #1a73e8;
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
     font-weight: bold;
     font-size: 16px;
   }
@@ -453,41 +478,41 @@ function openAiAssistant() {
     
     .sender-name {
       font-weight: 600;
-      font-size: 14px;
-      color: #1f1f1f;
+      font-size: 15px;
+      color: var(--color-text-main);
     }
     
     .sender-email {
       font-size: 12px;
-      color: #5f6368;
+      color: var(--color-text-secondary);
     }
     
     .mail-date-time {
       margin-left: auto;
       font-size: 12px;
-      color: #5f6368;
+      color: var(--color-text-secondary);
     }
   }
   
   .recipients-row {
-    font-size: 12px;
-    color: #5f6368;
+    font-size: 13px;
+    color: var(--color-text-secondary);
     line-height: 1.4;
     
     .to-prefix {
-      color: #70757a;
+      color: var(--color-text-muted);
       margin-right: 4px;
     }
     
     .to-names {
-      color: #3c4043;
+      color: var(--color-text-main);
     }
     
     .cc-section {
-      color: #70757a;
+      color: var(--color-text-muted);
       
       span {
-        color: #3c4043;
+        color: var(--color-text-main);
       }
     }
   }
@@ -498,7 +523,7 @@ function openAiAssistant() {
 }
 
 .mail-content {
-  color: #202124;
+  color: var(--color-text-main);
   font-size: 14px;
   line-height: 1.6;
   min-height: 300px;

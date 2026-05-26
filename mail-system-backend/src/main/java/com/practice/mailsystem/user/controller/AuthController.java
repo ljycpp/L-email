@@ -4,6 +4,7 @@ import com.practice.mailsystem.auth.LoginUser;
 import com.practice.mailsystem.auth.UserContext;
 import com.practice.mailsystem.common.ApiResponse;
 import com.practice.mailsystem.user.dto.LoginRequest;
+import com.practice.mailsystem.user.dto.ProfileUpdateRequest;
 import com.practice.mailsystem.user.dto.RegisterRequest;
 import com.practice.mailsystem.user.service.UserService;
 import com.practice.mailsystem.user.vo.LoginResponse;
@@ -11,6 +12,7 @@ import com.practice.mailsystem.user.vo.UserInfoResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +42,11 @@ public class AuthController {
         return ApiResponse.ok(userService.getUserInfo(UserContext.get()));
     }
 
+    @PutMapping("/api/users/me")
+    public ApiResponse<UserInfoResponse> updateMe(@Valid @RequestBody ProfileUpdateRequest request) {
+        return ApiResponse.ok(userService.updateProfile(UserContext.get(), request));
+    }
+
     @PostMapping("/login/loginbyemail")
     public LoginResponse legacyLogin(@Valid @RequestBody LoginRequest request) {
         return userService.login(request);
@@ -54,5 +61,10 @@ public class AuthController {
     public UserInfoResponse legacyUserInfo() {
         LoginUser loginUser = UserContext.get();
         return userService.getUserInfo(loginUser);
+    }
+
+    @PutMapping("/user/info")
+    public UserInfoResponse legacyUpdateUserInfo(@Valid @RequestBody ProfileUpdateRequest request) {
+        return userService.updateProfile(UserContext.get(), request);
     }
 }

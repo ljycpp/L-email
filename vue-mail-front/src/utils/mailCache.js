@@ -67,6 +67,23 @@ export function setMailDetailCache(mailType, mailId, payload) {
   }
 }
 
+export function clearMailListCaches() {
+  try {
+    const prefixes = [
+      `${CACHE_PREFIX}:mail-list:`,
+      `${CACHE_PREFIX}:mail-query:`
+    ];
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (prefixes.some(prefix => key?.startsWith(prefix))) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage access errors.
+  }
+}
+
 export function getAiResultCache(kind, mailId, extra = '') {
   return mailId ? readCache('ai-result', `${kind}:${mailId}:${extra}`) : null;
 }

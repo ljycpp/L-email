@@ -180,9 +180,11 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Transactional(rollbackFor = Exception.class)
     public Long saveGroup(GroupUpsertRequest request) {
         Long userId = requireUserId();
+        String groupName = normalizeName(request.name());
+        ensureGroupNameUnique(userId, groupName, null);
         MailContactGroup group = new MailContactGroup();
         group.setOwnerUserId(userId);
-        group.setGroupName(request.name());
+        group.setGroupName(groupName);
         group.setCreatedAt(LocalDateTime.now());
         groupMapper.insert(group);
         bindContactsToGroup(userId, group.getId(), request.safeContacts());
@@ -194,7 +196,9 @@ public class DirectoryServiceImpl implements DirectoryService {
     public Long updateGroup(Long groupId, GroupUpsertRequest request) {
         Long userId = requireUserId();
         MailContactGroup group = getOwnedGroup(groupId, userId);
-        group.setGroupName(request.name());
+        String groupName = normalizeName(request.name());
+        ensureGroupNameUnique(userId, groupName, groupId);
+        group.setGroupName(groupName);
         groupMapper.updateById(group);
         contactMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MailContact>()
                 .eq(MailContact::getOwnerUserId, userId)
@@ -220,9 +224,11 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Transactional(rollbackFor = Exception.class)
     public Long saveLabel(LabelUpsertRequest request) {
         Long userId = requireUserId();
+        String labelName = normalizeName(request.name());
+        ensureLabelNameUnique(userId, labelName, null);
         MailLabel label = new MailLabel();
         label.setUserId(userId);
-        label.setName(request.name());
+        label.setName(labelName);
         label.setColor(request.color());
         label.setCreatedAt(LocalDateTime.now());
         labelMapper.insert(label);
@@ -234,7 +240,9 @@ public class DirectoryServiceImpl implements DirectoryService {
     public Long updateLabel(Long labelId, LabelUpsertRequest request) {
         Long userId = requireUserId();
         MailLabel label = getOwnedLabel(labelId, userId);
-        label.setName(request.name());
+        String labelName = normalizeName(request.name());
+        ensureLabelNameUnique(userId, labelName, labelId);
+        label.setName(labelName);
         label.setColor(request.color());
         labelMapper.updateById(label);
         return label.getId();
@@ -311,6 +319,38 @@ public class DirectoryServiceImpl implements DirectoryService {
         if (count != null && count > 0) {
             throw new BusinessException(409, "联系人邮箱已存在");
         }
+    }
+
+    private void ensureGroupNameUnique(Long userId, String groupName, Long excludeId) {
+        List<MailContactGroup> groups = groupMapper.selectList(new LambdaQueryWrapper<MailContactGroup>()
+                .eq(MailContactGroup::getOwnerUserId, userId));
+        String normalizedName = normalizeName(groupName);
+        for (MailContactGroup group : groups) {
+            if (excludeId != null && excludeId.equals(group.getId())) {
+                continue;
+            }
+            if (normalizedName.equalsIgnoreCase(normalizeName(group.getGroupName()))) {
+                throw new BusinessException(409, "分组名称已存在");
+            }
+        }
+    }
+
+    private void ensureLabelNameUnique(Long userId, String labelName, Long excludeId) {
+        List<MailLabel> labels = labelMapper.selectList(new LambdaQueryWrapper<MailLabel>()
+                .eq(MailLabel::getUserId, userId));
+        String normalizedName = normalizeName(labelName);
+        for (MailLabel label : labels) {
+            if (excludeId != null && excludeId.equals(label.getId())) {
+                continue;
+            }
+            if (normalizedName.equalsIgnoreCase(normalizeName(label.getName()))) {
+                throw new BusinessException(409, "标签名称已存在");
+            }
+        }
+    }
+
+    private String normalizeName(String name) {
+        return name == null ? "" : name.trim();
     }
 
     private Long requireUserId() {

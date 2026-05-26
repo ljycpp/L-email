@@ -8,6 +8,7 @@ import com.practice.mailsystem.config.MailSystemProperties;
 import com.practice.mailsystem.mail.entity.MailLabel;
 import com.practice.mailsystem.mail.mapper.MailLabelMapper;
 import com.practice.mailsystem.user.dto.LoginRequest;
+import com.practice.mailsystem.user.dto.ProfileUpdateRequest;
 import com.practice.mailsystem.user.dto.RegisterRequest;
 import com.practice.mailsystem.user.entity.SysUser;
 import com.practice.mailsystem.user.mapper.SysUserMapper;
@@ -83,6 +84,22 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(404, "用户不存在");
         }
+        return toUserInfo(user);
+    }
+
+    @Override
+    public UserInfoResponse updateProfile(LoginUser loginUser, ProfileUpdateRequest request) {
+        SysUser user = sysUserMapper.selectById(loginUser.userId());
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        user.setNickname(request.nickname().trim());
+        user.setUpdatedAt(LocalDateTime.now());
+        sysUserMapper.updateById(user);
+        return toUserInfo(user);
+    }
+
+    private UserInfoResponse toUserInfo(SysUser user) {
         return new UserInfoResponse(
                 List.of("admin"),
                 user.getNickname(),

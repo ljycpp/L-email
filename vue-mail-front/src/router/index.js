@@ -30,7 +30,9 @@ export const constantRoutes = [
         meta: { title: '回收站', icon: 'Delete', isDeleted: true }
       },
       { path: 'mail_detail', name: 'MailDetail', component: () => import('@/views/mail/DetailView.vue'), meta: { title: '邮件详情', hidden: true } },
-      { path: 'ai-settings', name: 'AiSettings', component: () => import('@/views/ai/AiSettingsView.vue'), meta: { title: 'AI 设置', icon: 'Setting' } },
+      { path: 'settings', name: 'Settings', component: () => import('@/views/ai/AiSettingsView.vue'), meta: { title: '设置', icon: 'Setting' } },
+      { path: 'ai-settings', redirect: '/settings' },
+      { path: 'calendar', name: 'Calendar', component: () => import('@/views/calendar/CalendarView.vue'), meta: { title: '日历', icon: 'Calendar' } },
       { path: 'mail_label', name: 'Labels', component: () => import('@/views/label/LabelView.vue'), meta: { title: '标签管理', icon: 'CollectionTag', group: 'labels' } },
       { path: 'mail_contacts', name: 'Contacts', component: () => import('@/views/contact/ContactView.vue'), meta: { title: '联系人', icon: 'User', group: 'contacts' } },
       { path: 'mail_contacts/group', name: 'Groups', component: () => import('@/views/contact/GroupView.vue'), meta: { title: '分组管理', icon: 'Folder', group: 'contacts' } },

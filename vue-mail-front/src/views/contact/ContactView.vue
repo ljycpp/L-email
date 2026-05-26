@@ -6,23 +6,32 @@
     </div>
 
     <div class="filter-toolbar">
-      <el-button type="primary" @click="openDialog()">新建联系人</el-button>
-      <el-button type="danger" :disabled="!selectedIds.length" @click="batchDelete">删除选中</el-button>
-      <el-select v-model="query.groupId" placeholder="全部分组" clearable style="width: 160px" @change="search">
-        <el-option v-for="group in groupOptions" :key="group.id" :label="group.name" :value="String(group.id)" />
-      </el-select>
-      <el-input v-model="query.name" placeholder="按姓名搜索" clearable style="width: 180px" @keyup.enter="search" />
-      <el-input v-model="query.mail" placeholder="按邮箱搜索" clearable style="width: 220px" @keyup.enter="search" />
-      <el-button type="primary" @click="search">搜索</el-button>
-      <el-button @click="resetFilters">重置</el-button>
+      <div class="toolbar-actions">
+        <el-button class="soft-btn primary" @click="openDialog()">新建联系人</el-button>
+        <el-button class="soft-btn secondary" @click="router.push('/mail_contacts/group')">分组管理</el-button>
+        <el-button class="soft-btn secondary" @click="router.push('/mail_contacts/group?create=1')">新建分组</el-button>
+        <el-button class="soft-btn danger" :disabled="!selectedIds.length" @click="batchDelete">删除选中</el-button>
+      </div>
+      <div class="toolbar-filters">
+        <el-select v-model="query.groupId" placeholder="全部分组" clearable style="width: 160px" @change="search">
+          <el-option v-for="group in groupOptions" :key="group.id" :label="group.name" :value="String(group.id)" />
+        </el-select>
+        <el-input v-model="query.name" placeholder="按姓名搜索" clearable style="width: 180px" @keyup.enter="search" />
+        <el-input v-model="query.mail" placeholder="按邮箱搜索" clearable style="width: 220px" @keyup.enter="search" />
+        <el-button class="soft-btn primary" @click="search">搜索</el-button>
+        <el-button class="soft-btn secondary" @click="resetFilters">重置</el-button>
+      </div>
     </div>
 
-    <el-empty v-if="!list.length && !loading" description="暂无联系人，新建后可更快写信。" />
+    <div v-if="!list.length && !loading" class="empty-card">
+      <el-empty description="暂无联系人，新建后可更快写信。" />
+    </div>
 
     <el-row v-else :gutter="16" v-loading="loading">
       <el-col v-for="item in list" :key="item.id" :span="8" class="mb-16">
         <el-card
-          shadow="hover"
+          shadow="never"
+          class="contact-shell"
           :class="{ selected: selectedIds.includes(item.id) }"
           @click="toggle(item)"
         >
@@ -30,16 +39,18 @@
             <span class="selected-badge-circle">✓</span>
           </div>
           <div class="contact-card">
-            <el-avatar :src="item.avatarUrl" :size="64" />
+            <el-avatar class="contact-avatar" :src="item.avatarUrl" :size="52">
+              {{ item.name?.slice(0, 1) || '?' }}
+            </el-avatar>
             <div class="contact-meta">
               <div class="name">{{ item.name }}</div>
               <div class="mail">{{ item.mail }}</div>
               <div v-if="groupName(item.groupId)" class="group-tag">{{ groupName(item.groupId) }}</div>
             </div>
             <div class="actions" @click.stop>
-              <el-button size="small" @click="openDialog(item)">编辑</el-button>
-              <el-button size="small" type="primary" @click="sendTo(item)">写信</el-button>
-              <el-button size="small" type="danger" @click="removeContact(item)">删除</el-button>
+              <el-button size="small" class="soft-btn light-primary" @click="sendTo(item)">写信</el-button>
+              <el-button size="small" class="soft-btn secondary" @click="openDialog(item)">编辑</el-button>
+              <el-button size="small" class="soft-btn danger" @click="removeContact(item)">删除</el-button>
             </div>
           </div>
         </el-card>
@@ -77,8 +88,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" @click="submit">保存</el-button>
+        <el-button class="soft-btn secondary" @click="visible = false">取消</el-button>
+        <el-button class="soft-btn primary" @click="submit">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -247,23 +258,94 @@ function sendTo(item) {
 </script>
 
 <style scoped lang="scss">
-.directory-page { padding: 16px 20px; }
-.page-header { margin-bottom: 16px; }
-.page-title { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
-.page-desc { margin: 0; color: #909399; font-size: 13px; }
-.filter-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.directory-page {
+  min-height: 100%;
+  padding: 24px;
+  background: #f6f8fb;
+}
+
+.page-header { margin-bottom: 18px; }
+.page-title { margin: 0 0 6px; color: #1f2937; font-size: 22px; font-weight: 650; }
+.page-desc { margin: 0; color: #6b7280; font-size: 14px; }
+
+.filter-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e7ebf3;
+  border-radius: 16px;
+}
+
+.toolbar-actions,
+.toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar-filters {
+  justify-content: flex-end;
+}
+
 .mb-16 { margin-bottom: 16px; }
-.contact-card { display: flex; gap: 12px; align-items: center; }
+
+.empty-card {
+  background: #fff;
+  border: 1px solid #e7ebf3;
+  border-radius: 16px;
+}
+
+.contact-shell {
+  border: 1px solid #e7ebf3;
+  border-radius: 16px;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.contact-shell:hover {
+  border-color: #cdd8ff;
+  box-shadow: 0 10px 28px rgba(31, 41, 55, 0.06);
+  transform: translateY(-2px);
+}
+
+.contact-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-height: 88px;
+}
+
+.contact-avatar {
+  flex: 0 0 auto;
+  color: #5b7cfa;
+  background: #e8edff;
+  font-weight: 700;
+}
+
 .contact-meta { flex: 1; min-width: 0; }
-.name { font-weight: 600; }
-.mail { color: #909399; font-size: 13px; }
-.group-tag { font-size: 12px; color: #409eff; margin-top: 4px; }
-.actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
+.name { color: #1f2937; font-weight: 650; }
+.mail { overflow: hidden; color: #6b7280; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.group-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  margin-top: 8px;
+  padding: 0 10px;
+  color: #5b7cfa;
+  background: #e8edff;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.actions { flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .selected {
   position: relative;
-  border-color: #409eff;
-  background: linear-gradient(180deg, #f2f8ff 0%, #ffffff 100%);
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.18);
+  border-color: #5b7cfa;
+  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+  box-shadow: 0 0 0 2px rgba(91, 124, 250, 0.14);
 }
 .selected-badge {
   position: absolute;
@@ -276,7 +358,7 @@ function sendTo(item) {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #409eff;
+  background: #5b7cfa;
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -288,13 +370,75 @@ function sendTo(item) {
 .pagination-container { margin-top: 16px; display: flex; justify-content: flex-end; }
 .avatar-uploader-icon {
   font-size: 28px;
-  color: #8c939d;
+  color: #9ca3af;
   width: 80px;
   height: 80px;
-  border: 1px dashed #d9d9d9;
+  border: 1px dashed #dde3ee;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.soft-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.soft-btn.primary {
+  color: #fff;
+  background: #5b7cfa;
+  border-color: #5b7cfa;
+}
+
+.soft-btn.primary:hover {
+  background: #4667e8;
+  border-color: #4667e8;
+}
+
+.soft-btn.secondary {
+  color: #4b5563;
+  background: #fff;
+  border-color: #dde3ee;
+}
+
+.soft-btn.secondary:hover {
+  background: #f2f5fb;
+  border-color: #d7dfed;
+}
+
+.soft-btn.light-primary {
+  color: #5b7cfa;
+  background: #e8edff;
+  border-color: #e8edff;
+}
+
+.soft-btn.danger {
+  color: #ef4444;
+  background: #fee2e2;
+  border-color: #fee2e2;
+}
+
+.soft-btn.danger:hover {
+  background: #fecaca;
+  border-color: #fecaca;
+}
+
+:deep(.el-input__wrapper),
+:deep(.el-select__wrapper) {
+  min-height: 36px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #dde3ee inset;
+}
+
+:deep(.el-input__wrapper.is-focus),
+:deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #5b7cfa inset;
+}
+
+:deep(.el-card__body) {
+  padding: 18px;
 }
 </style>

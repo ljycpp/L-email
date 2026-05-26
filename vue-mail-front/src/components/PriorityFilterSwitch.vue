@@ -7,12 +7,10 @@
       <el-switch
         v-model="enabled"
         :loading="loading"
-        inline-prompt
-        active-text="优先级已开"
-        inactive-text="优先级已关"
         @change="onChange"
       />
     </el-tooltip>
+    <span class="switch-status">{{ enabled ? '已开启' : '已关闭' }}</span>
   </div>
 </template>
 
@@ -88,6 +86,22 @@ defineExpose({ reload: loadStatus });
 .priority-filter-switch {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
+  gap: 10px;
+}
+
+.switch-status {
+  color: #6b7280;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+:deep(.el-switch.is-checked .el-switch__core) {
+  background-color: #5b7cfa;
+  border-color: #5b7cfa;
+}
+
+:deep(.el-switch__core) {
+  background-color: #d1d5db;
+  border-color: #d1d5db;
 }
 </style>

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import Cookies from 'js-cookie';
-import { loginByEmail, logout, getInfo } from '@/api/auth';
+import { loginByEmail, logout, getInfo, updateInfo } from '@/api/auth';
 
 const TOKEN_KEY = 'Admin-Token';
 
@@ -24,6 +24,14 @@ export const useUserStore = defineStore('user', {
       this.email = data.email || '';
       this.avatar = data.avatar;
       this.roles = data.role || ['admin'];
+      return data;
+    },
+    async updateProfile(payload) {
+      const { data } = await updateInfo(payload);
+      this.name = data.name;
+      this.email = data.email || this.email;
+      this.avatar = data.avatar || this.avatar;
+      this.roles = data.role || this.roles;
       return data;
     },
     async logout() {

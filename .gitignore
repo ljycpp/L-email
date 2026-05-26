@@ -28,6 +28,7 @@ __pycache__/
 # Java / Maven
 mail-system-backend/target/
 mail-system-backend/.m2/
+mail-system-backend/cp.txt
 
 # Node / Frontend
 vue-mail-front/node_modules/
@@ -49,3 +50,7 @@ temp/
 
 # Tooling bundles not needed in repo
 tools/
+
+# Lucide Icons package
+node_modules/
+dist/

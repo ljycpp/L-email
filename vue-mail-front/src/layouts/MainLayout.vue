@@ -9,7 +9,7 @@
           @click="appStore.toggleSidebar"
         >
           <el-icon :size="20">
-            <Menu />
+            <PanelLeftIcon />
           </el-icon>
         </el-button>
         <div class="header-logo" @click="router.push('/inbox')">
@@ -36,19 +36,19 @@
     </el-header>
 
     <el-container class="layout-body">
-      <el-aside :width="appStore.sidebarCollapsed ? '72px' : '256px'" class="layout-aside">
+      <el-aside :width="appStore.sidebarCollapsed ? '88px' : '240px'" class="layout-aside" :class="{ 'is-collapsed': appStore.sidebarCollapsed }">
         <el-button
           v-if="!appStore.sidebarCollapsed"
           type="primary"
           class="compose-btn"
           @click="router.push('/mail_send')"
         >
-          <el-icon><EditPen /></el-icon>
+          <el-icon><SquarePenIcon /></el-icon>
           写邮件
         </el-button>
         <el-tooltip v-else content="写邮件" placement="right" effect="dark">
           <el-button type="primary" class="compose-btn-mini" circle @click="router.push('/mail_send')">
-            <el-icon><EditPen /></el-icon>
+            <el-icon><SquarePenIcon /></el-icon>
           </el-button>
         </el-tooltip>
 
@@ -61,87 +61,51 @@
           class="sidebar-menu"
         >
           <el-menu-item index="/inbox">
-            <el-icon><Message /></el-icon>
+            <el-icon><InboxIcon /></el-icon>
             <template #title>
               <span>收件箱</span>
               <span v-if="unreadCount > 0 && !appStore.sidebarCollapsed" class="menu-badge">{{ unreadCount }}</span>
             </template>
           </el-menu-item>
           <el-menu-item index="/star">
-            <el-icon><Star /></el-icon>
+            <el-icon><StarIcon /></el-icon>
             <template #title>星标邮件</template>
           </el-menu-item>
           <el-menu-item index="/outbox">
-            <el-icon><Promotion /></el-icon>
+            <el-icon><SendIcon /></el-icon>
             <template #title>发件箱</template>
           </el-menu-item>
           <el-menu-item index="/draftbox">
-            <el-icon><Document /></el-icon>
+            <el-icon><FileTextIcon /></el-icon>
             <template #title>草稿箱</template>
           </el-menu-item>
           <el-menu-item index="/mail_list">
-            <el-icon><Delete /></el-icon>
+            <el-icon><Trash2Icon /></el-icon>
             <template #title>回收站</template>
           </el-menu-item>
           <el-menu-item index="/spam">
-            <el-icon><Warning /></el-icon>
+            <el-icon><OctagonAlertIcon /></el-icon>
             <template #title>
               <span>垃圾邮件</span>
               <span v-if="spamCount > 0 && !appStore.sidebarCollapsed" class="menu-badge spam">{{ spamCount }}</span>
             </template>
           </el-menu-item>
-          <el-menu-item index="/ai-settings">
-            <el-icon><Setting /></el-icon>
-            <template #title>AI 设置</template>
+          <el-menu-item index="/mail_label">
+            <el-icon><FolderIcon /></el-icon>
+            <template #title>标签</template>
           </el-menu-item>
-
-          <el-sub-menu index="labels">
-            <template #title>
-              <el-icon><Folder /></el-icon>
-              <span v-if="!appStore.sidebarCollapsed">标签</span>
-            </template>
-            <el-menu-item v-for="item in menuStore.labels" :key="item.id" :index="labelMenuIndex(item)">
-              <template #title>
-                <span class="folder-item-dot" :style="{ background: item.color }" />
-                {{ item.name }}
-              </template>
-            </el-menu-item>
-            <el-menu-item index="folder-new">
-              <template #title>
-                <span class="folder-add-row" @click.stop.prevent="openNewFolderDialog">
-                  <el-icon class="folder-add-icon"><Plus /></el-icon>
-                  新建标签
-                </span>
-              </template>
-            </el-menu-item>
-            <el-menu-item index="/mail_label">管理标签</el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="contacts">
-            <template #title>
-              <el-icon><User /></el-icon>
-              <span>联系人</span>
-            </template>
-
-            <el-sub-menu index="contacts-items">
-              <template #title>联系人</template>
-              <el-menu-item index="/mail_contacts?create=1">新建联系人</el-menu-item>
-              <el-menu-item index="/mail_contacts">全部联系人</el-menu-item>
-            </el-sub-menu>
-
-            <el-sub-menu index="contacts-groups">
-              <template #title>分组</template>
-              <el-menu-item index="/mail_contacts/group?create=1">新建分组</el-menu-item>
-              <el-menu-item index="/mail_contacts/group">分组管理</el-menu-item>
-              <el-menu-item
-                v-for="item in menuStore.groups"
-                :key="item.id"
-                :index="`/mail_contacts/group_members?groupId=${item.id}`"
-              >
-                {{ item.name }}
-              </el-menu-item>
-            </el-sub-menu>
-          </el-sub-menu>
+          <el-menu-item index="/mail_contacts">
+            <el-icon><UserRoundIcon /></el-icon>
+            <template #title>联系人</template>
+          </el-menu-item>
+          <el-menu-item index="/calendar">
+            <el-icon><CalendarDaysIcon /></el-icon>
+            <template #title>日历</template>
+          </el-menu-item>
+          <el-menu-item index="/settings">
+            <el-icon><SettingsIcon /></el-icon>
+            <template #title>设置</template>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -153,45 +117,33 @@
         <AiAssistantDrawer />
       </div>
     </el-container>
-
-    <el-dialog v-model="folderDialogVisible" title="新建标签" width="400px" @closed="resetFolderForm">
-      <el-form :model="folderForm" label-width="72px" @submit.prevent="submitNewFolder">
-        <el-form-item label="名称" required>
-          <el-input
-            ref="folderNameInputRef"
-            v-model="folderForm.name"
-            placeholder="请输入标签名称"
-            maxlength="30"
-            show-word-limit
-            @keyup.enter="submitNewFolder"
-          />
-        </el-form-item>
-        <el-form-item label="颜色">
-          <el-color-picker v-model="folderForm.color" :predefine="folderColors" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="folderDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="folderSaving" @click="submitNewFolder">创建</el-button>
-      </template>
-    </el-dialog>
   </el-container>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
 import {
-  EditPen, Message, Promotion, Document, Delete, Star, Warning,
-  Folder, User, Fold, Expand, Search, Plus, Setting, Menu
-} from '@element-plus/icons-vue';
+  FileText as FileTextIcon,
+  Folder as FolderIcon,
+  Inbox as InboxIcon,
+  CalendarDays as CalendarDaysIcon,
+  OctagonAlert as OctagonAlertIcon,
+  PanelLeft as PanelLeftIcon,
+  Send as SendIcon,
+  Settings as SettingsIcon,
+  SquarePen as SquarePenIcon,
+  Star as StarIcon,
+  Trash2 as Trash2Icon,
+  UserRound as UserRoundIcon
+} from '@lucide/vue';
 import { useAppStore } from '@/stores/app';
 import { useUserStore } from '@/stores/user';
 import { useMenuStore } from '@/stores/menu';
 import { useAiStore } from '@/stores/ai';
 import { useNotificationStore } from '@/stores/notification';
-import { inboxApi, spamApi, labelApi } from '@/api/mail';
+import { inboxApi, spamApi } from '@/api/mail';
 import { MAIL_SYSTEM_NAME } from '@/constants/brand';
 import AiAssistantDrawer from '@/components/AiAssistantDrawer.vue';
 import { disconnectMailWebSocket } from '@/composables/useMailWebSocket';
@@ -207,26 +159,16 @@ const notificationStore = useNotificationStore();
 const searchKeyword = ref('');
 const unreadCount = ref(0);
 const spamCount = ref(0);
-const folderDialogVisible = ref(false);
-const folderSaving = ref(false);
-const folderNameInputRef = ref();
-const folderColors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399', '#9b59b6'];
-const folderForm = reactive({ name: '', color: '#409eff' });
-
-function labelMenuIndex(item) {
-  const name = encodeURIComponent(item.name || '');
-  return `/mail_list?labelId=${item.id}&labelName=${name}`;
-}
 
 const activeMenu = computed(() => {
   if (route.fullPath.includes('/mail_contacts/group_members')) {
-    return route.fullPath;
+    return '/mail_contacts';
   }
   if (route.path.startsWith('/mail_list') && route.query.labelId) {
-    return route.fullPath;
+    return '/mail_label';
   }
-  if (route.path.startsWith('/mail_contacts') && route.fullPath.includes('?')) {
-    return route.fullPath;
+  if (route.path.startsWith('/mail_contacts')) {
+    return '/mail_contacts';
   }
   return route.path;
 });
@@ -250,6 +192,7 @@ async function loadSidebarCounts() {
 onMounted(loadSidebarCounts);
 watch(() => route.path, loadSidebarCounts);
 watch(() => notificationStore.inboxTick, loadSidebarCounts);
+watch(() => notificationStore.readTick, loadSidebarCounts);
 watch(() => notificationStore.spamTick, loadSidebarCounts);
 
 function onSearch() {
@@ -269,34 +212,6 @@ watch(
   { immediate: true }
 );
 
-function openNewFolderDialog() {
-  resetFolderForm();
-  folderDialogVisible.value = true;
-  nextTick(() => folderNameInputRef.value?.focus?.());
-}
-
-function resetFolderForm() {
-  folderForm.name = '';
-  folderForm.color = '#409eff';
-}
-
-async function submitNewFolder() {
-  const name = folderForm.name?.trim();
-  if (!name) {
-    ElMessage.warning('请先输入标签名称');
-    return;
-  }
-  folderSaving.value = true;
-  try {
-    await labelApi.add({ name, color: folderForm.color });
-    ElMessage.success('标签已创建');
-    folderDialogVisible.value = false;
-    await menuStore.reloadMenus();
-  } finally {
-    folderSaving.value = false;
-  }
-}
-
 async function handleLogout() {
   disconnectMailWebSocket();
   notificationStore.clearAll();
@@ -311,110 +226,137 @@ async function handleLogout() {
 </script>
 
 <style scoped lang="scss">
-.layout-root { height: 100vh; flex-direction: column; background: #f6f8fc; }
+.layout-root { height: 100vh; flex-direction: column; background: var(--color-bg-page); }
 .layout-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f3f4;
-  height: 64px;
+  padding: 8px 18px;
+  background: var(--color-bg-page);
+  border-bottom: 1px solid var(--color-border);
+  height: 70px;
   .header-left {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
-    width: 240px;
+    width: 222px;
   }
   .sidebar-toggle-btn {
-    color: #5f6368;
+    color: var(--color-text-secondary);
+    :deep(svg) {
+      width: 19px;
+      height: 19px;
+      stroke-width: 1.8;
+    }
     &:hover {
-      background-color: rgba(60,64,67,0.08);
+      background-color: var(--color-hover);
+      color: var(--color-primary);
     }
   }
 }
 .header-logo { cursor: pointer; flex-shrink: 0; display: flex; align-items: center; }
-.logo-text { font-size: 22px; font-weight: 500; color: #1f1f1f; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+.logo-text { font-size: 22px; font-weight: 700; color: var(--color-text-main); font-family: 'Google Sans', Roboto, Arial, sans-serif; letter-spacing: 0; }
 
 .header-search {
   flex: 1;
-  max-width: 720px;
-  margin-left: 8px;
+  max-width: 680px;
+  margin-left: 4px;
   :deep(.el-input__wrapper) {
-    background-color: #f1f3f4;
+    background-color: #f1f4f9;
     border-radius: 24px;
     box-shadow: none !important;
     border: 1px solid transparent;
-    padding: 0 16px;
-    height: 48px;
-    transition: background-color 0.2s, box-shadow 0.2s;
+    padding: 0 18px;
+    height: 46px;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
     &:hover {
-      background-color: #eef1f2;
+      background-color: var(--color-hover);
     }
     &.is-focus {
-      background-color: #ffffff;
-      box-shadow: 0 1px 1px 0 rgba(65,69,73,0.3), 0 1px 3px 1px rgba(65,69,73,0.15) !important;
+      background-color: var(--color-bg-card);
+      border-color: #dde3f0;
+      box-shadow: 0 4px 16px rgba(31, 41, 55, 0.08) !important;
     }
   }
   :deep(.el-input__inner) {
     font-size: 15px;
+    color: var(--color-text-main);
+    &::placeholder {
+      color: var(--color-text-muted);
+    }
   }
 }
 
 .header-right { display: flex; align-items: center; gap: 16px; margin-left: auto; }
 .user-meta { display: flex; flex-direction: column; line-height: 1.2; }
-.user-name { font-size: 13px; font-weight: 600; color: #3c4043; }
-.user-email { font-size: 11px; color: #5f6368; }
+.user-name { font-size: 13px; font-weight: 600; color: var(--color-text-main); }
+.user-email { font-size: 11px; color: var(--color-text-secondary); }
 .layout-body { flex: 1; overflow: hidden; }
 
 .layout-aside {
   display: flex;
   flex-direction: column;
-  background: #f6f8fc;
+  background: var(--color-bg-sidebar);
   border-right: none;
   overflow: hidden;
   transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.layout-aside.is-collapsed {
+  align-items: center;
+}
+
 .compose-btn {
-  margin: 16px 12px;
+  margin: 16px 14px 12px;
   height: 48px;
   border-radius: 16px;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
-  background: #c2e7ff !important;
+  background: var(--color-primary-light) !important;
   border: none !important;
-  color: #001d35 !important;
-  box-shadow: 0 1px 3px 0 rgba(60,64,67,0.2), 0 2px 6px 2px rgba(60,64,67,0.1) !important;
-  transition: box-shadow 0.2s, background-color 0.2s;
+  color: var(--color-primary) !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s, color 0.2s;
   &:hover {
-    background: #b3d8ef !important;
-    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15) !important;
+    background: #dde7ff !important;
+    color: var(--color-primary-hover) !important;
   }
   .el-icon {
     font-size: 18px;
     margin-right: 8px;
+    :deep(svg) {
+      width: 18px;
+      height: 18px;
+      stroke-width: 1.8;
+    }
   }
 }
 
 .compose-btn-mini {
-  margin: 16px auto;
-  display: block;
-  width: 48px;
-  height: 48px;
+  margin: 16px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
   border-radius: 16px;
-  background: #c2e7ff !important;
+  background: var(--color-primary-light) !important;
   border: none !important;
-  color: #001d35 !important;
-  box-shadow: 0 1px 3px 0 rgba(60,64,67,0.2), 0 2px 6px 2px rgba(60,64,67,0.1) !important;
-  transition: box-shadow 0.2s, background-color 0.2s;
+  color: var(--color-primary) !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s, color 0.2s;
   &:hover {
-    background: #b3d8ef !important;
-    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15) !important;
+    background: #dde7ff !important;
+    color: var(--color-primary-hover) !important;
   }
   .el-icon {
     font-size: 18px;
+    :deep(svg) {
+      width: 18px;
+      height: 18px;
+      stroke-width: 1.8;
+    }
   }
 }
 
@@ -423,33 +365,77 @@ async function handleLogout() {
   border-right: none;
   overflow-y: auto;
   background: transparent;
-  padding-right: 8px;
+  width: 100%;
+  padding: 0 10px 14px 0;
+
+  &.el-menu--collapse {
+    width: 88px;
+    --el-menu-collapse-width: 88px;
+    padding: 0 16px 14px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+
+    :deep(.el-menu-item) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      min-width: 56px;
+      height: 48px;
+      line-height: 48px;
+      margin: 0 0 8px;
+      padding: 0 !important;
+      border-radius: 16px;
+    }
+
+    :deep(.el-menu-item .el-icon) {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin: 0 !important;
+      transform: none;
+    }
+
+    :deep(.el-menu-item .el-icon svg) {
+      width: 20px;
+      height: 20px;
+    }
+  }
   
   :deep(.el-menu-item) {
-    height: 40px;
-    line-height: 40px;
+    height: 42px;
+    line-height: 42px;
     margin: 0 0 4px 12px;
-    border-radius: 20px;
-    color: #444746;
-    font-size: 14px;
-    padding-left: 16px !important;
+    border-radius: 14px;
+    color: var(--color-text-secondary);
+    font-size: 15px;
+    font-weight: 500;
+    padding-left: 14px !important;
     
     .el-icon {
-      color: #444746;
+      color: currentColor;
       font-size: 18px;
+      svg {
+        width: 18px;
+        height: 18px;
+        stroke-width: 1.8;
+      }
     }
     
     &:hover {
-      background-color: rgba(60,64,67,0.04);
-      color: #1f1f1f;
+      background-color: var(--color-hover);
+      color: var(--color-text-main);
     }
     
     &.is-active {
-      background-color: #d3e3fd;
-      color: #041e49;
-      font-weight: 500;
+      background-color: var(--color-primary-light);
+      color: var(--color-primary);
+      font-weight: 600;
       .el-icon {
-        color: #041e49;
+        color: currentColor;
       }
     }
   }
@@ -458,21 +444,27 @@ async function handleLogout() {
     margin-left: 12px;
     
     .el-sub-menu__title {
-      height: 40px;
-      line-height: 40px;
-      border-radius: 20px;
-      color: #444746;
-      font-size: 14px;
-      padding-left: 16px !important;
+      height: 42px;
+      line-height: 42px;
+      border-radius: 14px;
+      color: var(--color-text-secondary);
+      font-size: 15px;
+      font-weight: 500;
+      padding-left: 14px !important;
       
       .el-icon {
-        color: #444746;
+        color: currentColor;
         font-size: 18px;
+        svg {
+          width: 18px;
+          height: 18px;
+          stroke-width: 1.8;
+        }
       }
       
       &:hover {
-        background-color: rgba(60,64,67,0.04);
-        color: #1f1f1f;
+        background-color: var(--color-hover);
+        color: var(--color-text-main);
       }
     }
     
@@ -488,15 +480,18 @@ async function handleLogout() {
 
 .menu-badge {
   margin-left: auto;
-  font-size: 11px;
-  background: #0b57d0;
-  color: #fff;
-  padding: 0 8px;
-  border-radius: 10px;
-  line-height: 18px;
+  min-width: 22px;
+  height: 20px;
+  font-size: 12px;
+  background: #eef2ff;
+  color: var(--color-primary);
+  padding: 0 6px;
+  border-radius: 999px;
+  line-height: 20px;
   font-weight: 600;
+  text-align: center;
 }
-.menu-badge.spam { background: #b06000; }
+.menu-badge.spam { background: #fff1f2; color: #e11d48; }
 .folder-item-dot {
   display: inline-block;
   width: 8px;
@@ -504,14 +499,14 @@ async function handleLogout() {
   border-radius: 50%;
   margin-right: 8px;
 }
-.folder-add-row { display: flex; align-items: center; gap: 4px; color: #0b57d0; }
-.layout-main { padding: 0; overflow: auto; background: #ffffff; border-radius: 16px 16px 0 0; margin-right: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); }
+.folder-add-row { display: flex; align-items: center; gap: 4px; color: var(--color-primary); }
+.layout-main { padding: 0; overflow: auto; background: var(--color-bg-card); border-radius: 16px 0 0 0; margin-right: 0; border: 1px solid var(--color-border); border-right: 0; border-bottom: 0; box-shadow: var(--shadow-soft); }
 
 .layout-ai-aside {
   width: 380px;
   height: 100%;
-  background: #ffffff;
-  border-left: 1px solid #e0e2e6;
+  background: var(--color-bg-card);
+  border-left: 1px solid var(--color-border);
   transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-left-color 0.2s;
   overflow: hidden;
   flex-shrink: 0;

@@ -8,6 +8,7 @@ let toastSeq = 0;
 export const useNotificationStore = defineStore('notification', {
   state: () => ({
     inboxTick: 0,
+    readTick: 0,
     spamTick: 0,
     highPriorityTick: 0,
     lastNewMail: null,
@@ -25,6 +26,9 @@ export const useNotificationStore = defineStore('notification', {
     onSpamFiltered(_payload) {
       // 自动识别为垃圾邮件：仅刷新侧栏/列表计数，不弹出右下角 Toast
       this.spamTick += 1;
+    },
+    onReadStateChanged() {
+      this.readTick += 1;
     },
     pushToast(payload) {
       const id = ++toastSeq;
@@ -53,6 +57,7 @@ export const useNotificationStore = defineStore('notification', {
     clearAll() {
       this.toasts = [];
       this.lastNewMail = null;
+      this.readTick = 0;
       this.spamTick = 0;
       this.highPriorityTick = 0;
     }
