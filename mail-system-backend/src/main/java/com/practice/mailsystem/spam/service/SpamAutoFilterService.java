@@ -44,16 +44,16 @@ public class SpamAutoFilterService {
     }
 
     public SpamAutoFilterStatusVO getStatus() {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         return new SpamAutoFilterStatusVO(isAutoFilterEnabled(userId));
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void enable() {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(404, "?????");
         }
         try {
             spamDetectionPlugin.testConnection();
@@ -63,8 +63,8 @@ public class SpamAutoFilterService {
             String detail = ex.getMessage() == null ? "" : ex.getMessage();
             throw new BusinessException(
                     502,
-                    "无法加载垃圾邮件检测插件，请确认内置模型文件和后端配置可用。"
-                            + (detail.isBlank() ? "" : " 详情: " + detail)
+                    "???????????????????????????????"
+                            + (detail.isBlank() ? "" : " ??: " + detail)
             );
         }
         user.setAutoSpamFilter(1);
@@ -74,10 +74,10 @@ public class SpamAutoFilterService {
 
     @Transactional(rollbackFor = Exception.class)
     public void disable() {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(404, "?????");
         }
         user.setAutoSpamFilter(0);
         user.setUpdatedAt(LocalDateTime.now());
@@ -121,7 +121,7 @@ public class SpamAutoFilterService {
         inboxBox.setUpdatedAt(now);
         mailUserBoxMapper.updateById(inboxBox);
 
-        String title = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "（无主题）";
+        String title = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "?????";
         mailNotificationService.notifySpamFiltered(
                 ownerUserId,
                 message.getId(),
@@ -148,14 +148,14 @@ public class SpamAutoFilterService {
         }
         String extraReasons = result.reasonTokens() == null || result.reasonTokens().isEmpty()
                 ? ""
-                : "；主要依据：" + String.join("、", result.reasonTokens());
+                : "??????" + String.join("?", result.reasonTokens());
         return String.format(
                 Locale.CHINA,
-                "系统判定为垃圾邮件（置信度 %.1f%%）。spam 概率 %.1f%%，ham 概率 %.1f%%。主题：%s%s",
+                "????????????? %.1f%%?spam ?? %.1f%%?ham ?? %.1f%%?????%s%s",
                 result.confidence() * 100,
                 result.spamScore() * 100,
                 result.hamScore() * 100,
-                safeSubject.isEmpty() ? "（无主题）" : safeSubject,
+                safeSubject.isEmpty() ? "?????" : safeSubject,
                 extraReasons
         );
     }
@@ -168,13 +168,5 @@ public class SpamAutoFilterService {
             return message.getContentHtml().replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
         }
         return "";
-    }
-
-    private Long requiredUserId() {
-        Long userId = UserContext.requireUserId();
-        if (userId == null) {
-            throw new BusinessException(401, "未登录");
-        }
-        return userId;
     }
 }

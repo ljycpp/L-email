@@ -123,21 +123,21 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Search } from '@element-plus/icons-vue';
 import {
-  FileText as FileTextIcon,
+  Calendar as CalendarDaysIcon,
+  Delete as Trash2Icon,
+  Document as FileTextIcon,
+  EditPen as SquarePenIcon,
+  Fold as PanelLeftIcon,
   Folder as FolderIcon,
-  Inbox as InboxIcon,
-  CalendarDays as CalendarDaysIcon,
-  OctagonAlert as OctagonAlertIcon,
-  PanelLeft as PanelLeftIcon,
-  Send as SendIcon,
-  Settings as SettingsIcon,
-  SquarePen as SquarePenIcon,
+  MessageBox as InboxIcon,
+  Promotion as SendIcon,
+  Search,
+  Setting as SettingsIcon,
   Star as StarIcon,
-  Trash2 as Trash2Icon,
-  UserRound as UserRoundIcon
-} from '@lucide/vue';
+  User as UserRoundIcon,
+  Warning as OctagonAlertIcon
+} from '@element-plus/icons-vue';
 import { useAppStore } from '@/stores/app';
 import { useUserStore } from '@/stores/user';
 import { useMenuStore } from '@/stores/menu';

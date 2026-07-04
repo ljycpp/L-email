@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.mailsystem.ai.config.AiProperties;
 import com.practice.mailsystem.ai.dto.ActionItemsRequest;
+import com.practice.mailsystem.ai.dto.ChatRequest;
 import com.practice.mailsystem.ai.dto.MailSummaryRequest;
 import com.practice.mailsystem.ai.dto.ReplySuggestionRequest;
 import com.practice.mailsystem.ai.entity.MailAiRecord;
@@ -16,6 +17,7 @@ import com.practice.mailsystem.ai.service.AiConfigService;
 import com.practice.mailsystem.ai.service.AiMailService;
 import com.practice.mailsystem.ai.vo.ActionItemVO;
 import com.practice.mailsystem.ai.vo.ActionItemsVO;
+import com.practice.mailsystem.ai.vo.ChatResponse;
 import com.practice.mailsystem.ai.vo.MailSummaryVO;
 import com.practice.mailsystem.ai.vo.ReplySuggestionVO;
 import com.practice.mailsystem.common.exception.BusinessException;
@@ -136,6 +138,33 @@ public class AiMailServiceImpl implements AiMailService {
             saveRecord(userId, request.mailId(), AiActionType.ACTION_ITEMS, promptSnapshot,
                     null, AiRecordStatus.FAILED, ex.getMessage());
             throw new BusinessException(500, "Action item extraction failed. Please try again later.");
+        }
+    }
+
+    @Override
+    public ChatResponse chat(Long userId, ChatRequest request) {
+        String apiKey = aiConfigService.getActiveApiKey(userId);
+        String modelName = aiConfigService.getActiveModelName(userId);
+        String mailContext = buildMailContext(userId, request.mailId());
+        try {
+            String reply = aiProvider.chat(request.message(), mailContext, apiKey, modelName);
+            return new ChatResponse(reply);
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(500, "Chat request failed. Please try again later.");
+        }
+    }
+
+    private String buildMailContext(Long userId, Long mailId) {
+        if (mailId == null) {
+            return null;
+        }
+        try {
+            MailContent mail = loadAccessibleMail(userId, mailId);
+            return "主题：" + mail.subject() + "\n正文：" + normalizeContent(mail.content());
+        } catch (Exception ex) {
+            return null;
         }
     }
 

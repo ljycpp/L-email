@@ -1,3 +1,5 @@
+import request from '@/utils/request';
+
 function resolveApiOrigin() {
   const explicitBase = import.meta.env.VITE_API_BASE;
   if (explicitBase) {
@@ -15,9 +17,11 @@ function resolveApiOrigin() {
   return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
 }
 
-export function buildMailSocketUrl(token) {
+/** 先换取一次性 ticket，再建立 WebSocket（URL 中不再携带 JWT） */
+export async function buildMailSocketUrl() {
+  const { data: ticket } = await request.get('/api/ws/ticket');
   const apiOrigin = resolveApiOrigin();
   const wsProtocol = apiOrigin.startsWith('https://') ? 'wss://' : 'ws://';
   const host = apiOrigin.replace(/^https?:\/\//, '');
-  return `${wsProtocol}${host}/ws/mail?token=${encodeURIComponent(token)}`;
+  return `${wsProtocol}${host}/ws/mail?ticket=${encodeURIComponent(ticket)}`;
 }

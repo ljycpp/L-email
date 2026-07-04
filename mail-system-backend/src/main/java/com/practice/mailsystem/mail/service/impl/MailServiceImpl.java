@@ -2,7 +2,6 @@ package com.practice.mailsystem.mail.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.practice.mailsystem.attachment.entity.MailAttachment;
 import com.practice.mailsystem.attachment.mapper.MailAttachmentMapper;
 import com.practice.mailsystem.attachment.service.AttachmentService;
@@ -23,23 +22,21 @@ import com.practice.mailsystem.mail.mapper.MailMessageMapper;
 import com.practice.mailsystem.mail.mapper.MailRecipientMapper;
 import com.practice.mailsystem.mail.mapper.MailUserBoxMapper;
 import com.practice.mailsystem.mail.mapper.MailUserLabelMapper;
+import com.practice.mailsystem.mail.service.MailListQueryService;
 import com.practice.mailsystem.mail.service.MailService;
-import com.practice.mailsystem.mail.vo.AttachmentItemVO;
+import com.practice.mailsystem.mail.util.MailBoxUtils;
 import com.practice.mailsystem.mail.vo.DraftItemVO;
 import com.practice.mailsystem.mail.vo.InboxItemVO;
-import com.practice.mailsystem.mail.vo.LabelItemVO;
 import com.practice.mailsystem.mail.vo.MailDetailVO;
 import com.practice.mailsystem.mail.vo.MailListItemVO;
 import com.practice.mailsystem.mail.vo.OutboxItemVO;
-import com.practice.mailsystem.mail.vo.PartyVO;
-import com.practice.mailsystem.common.PublicUrlBuilder;
 import com.practice.mailsystem.user.entity.SysUser;
 import com.practice.mailsystem.user.mapper.SysUserMapper;
 import com.practice.mailsystem.priority.service.MailPriorityAutoService;
 import com.practice.mailsystem.spam.service.SpamAutoFilterService;
 import com.practice.mailsystem.websocket.MailNotificationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -48,13 +45,8 @@ import org.springframework.util.StringUtils;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,19 +54,19 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class MailServiceImpl implements MailService {
 
-    private static final Logger log = LoggerFactory.getLogger(MailServiceImpl.class);
-
-    private static final String BOX_INBOX = "INBOX";
-    private static final String BOX_OUTBOX = "OUTBOX";
-    private static final String BOX_DRAFT = "DRAFT";
+    private static final String BOX_INBOX   = "INBOX";
+    private static final String BOX_OUTBOX  = "OUTBOX";
+    private static final String BOX_DRAFT   = "DRAFT";
     private static final String ROLE_SENDER = "SENDER";
-    private static final String ROLE_TO = "TO";
-    private static final String ROLE_CC = "CC";
+    private static final String ROLE_TO     = "TO";
+    private static final String ROLE_CC     = "CC";
 
     private final MailMessageMapper mailMessageMapper;
     private final MailUserBoxMapper mailUserBoxMapper;
@@ -83,11 +75,12 @@ public class MailServiceImpl implements MailService {
     private final MailLabelMapper labelMapper;
     private final MailUserLabelMapper userLabelMapper;
     private final SysUserMapper userMapper;
-    private final PublicUrlBuilder publicUrlBuilder;
     private final MailNotificationService mailNotificationService;
     private final AttachmentService attachmentService;
     private final SpamAutoFilterService spamAutoFilterService;
     private final MailPriorityAutoService mailPriorityAutoService;
+    private final MailListQueryService mailListQueryService;
+    private final Executor mailTaskExecutor;
 
     public MailServiceImpl(MailMessageMapper mailMessageMapper,
                            MailUserBoxMapper mailUserBoxMapper,
@@ -96,11 +89,12 @@ public class MailServiceImpl implements MailService {
                            MailLabelMapper labelMapper,
                            MailUserLabelMapper userLabelMapper,
                            SysUserMapper userMapper,
-                           PublicUrlBuilder publicUrlBuilder,
                            MailNotificationService mailNotificationService,
                            AttachmentService attachmentService,
                            SpamAutoFilterService spamAutoFilterService,
-                           MailPriorityAutoService mailPriorityAutoService) {
+                           MailPriorityAutoService mailPriorityAutoService,
+                           MailListQueryService mailListQueryService,
+                           @Qualifier("mailTaskExecutor") Executor mailTaskExecutor) {
         this.mailMessageMapper = mailMessageMapper;
         this.mailUserBoxMapper = mailUserBoxMapper;
         this.recipientMapper = recipientMapper;
@@ -108,26 +102,30 @@ public class MailServiceImpl implements MailService {
         this.labelMapper = labelMapper;
         this.userLabelMapper = userLabelMapper;
         this.userMapper = userMapper;
-        this.publicUrlBuilder = publicUrlBuilder;
         this.mailNotificationService = mailNotificationService;
         this.attachmentService = attachmentService;
         this.spamAutoFilterService = spamAutoFilterService;
         this.mailPriorityAutoService = mailPriorityAutoService;
+        this.mailListQueryService = mailListQueryService;
+        this.mailTaskExecutor = mailTaskExecutor;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long send(MailCreateRequest request) {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         List<PartyRequest> targets = normalizeParties(request.safeTarget());
         List<PartyRequest> copies = normalizePartiesExcluding(request.safeCopy(), targets);
         if (targets.isEmpty()) {
-            throw new BusinessException("收件人不能为空");
+            throw new BusinessException("???????");
         }
 
         MailMessage message;
         if (request.draftId() != null) {
             message = mailMessageMapper.selectById(request.draftId());
+            if (message == null || message.getDraftFlag() == null || message.getDraftFlag() != 1) {
+                throw new BusinessException(400, "?????????");
+            }
             MailUserBox draftBox = getOwnedDraftBox(message, userId);
             message.setSubject(request.title());
             message.setContentHtml(request.content());
@@ -166,7 +164,7 @@ public class MailServiceImpl implements MailService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long saveDraft(MailCreateRequest request) {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         List<PartyRequest> targets = normalizeParties(request.safeTarget());
         List<PartyRequest> copies = normalizePartiesExcluding(request.safeCopy(), targets);
         MailMessage message;
@@ -199,183 +197,28 @@ public class MailServiceImpl implements MailService {
 
     @Override
     public PageResult<InboxItemVO> listInbox(MailListQuery query) {
-        Page<MailUserBox> page = queryBox(query, BOX_INBOX, false);
-        if (page.getRecords().isEmpty()) return new PageResult<>(page.getTotal(), List.of());
-        List<Long> mailIds = page.getRecords().stream().map(MailUserBox::getMailId).distinct().toList();
-        Map<Long, MailMessage> msgMap = batchLoadMessages(mailIds);
-        Map<Long, SysUser> userMap = batchLoadSenders(msgMap.values());
-        Map<Long, List<LabelItemVO>> labelMap = batchLoadLabels(
-                page.getRecords().stream().map(MailUserBox::getId).toList());
-        List<InboxItemVO> items = page.getRecords().stream().map(box -> {
-            MailMessage msg = msgMap.get(box.getMailId());
-            SysUser sender = msg != null ? userMap.get(msg.getSenderUserId()) : null;
-            return new InboxItemVO(
-                    box.getMailId(),
-                    box.getStarFlag() == 1,
-                    msg != null && msg.getHasAttachment() != null && msg.getHasAttachment() == 1,
-                    false,
-                    box.getReadFlag() == 1 ? 1 : 0,
-                    sender == null ? "未知用户" : sender.getNickname(),
-                    sender == null ? "" : sender.getEmail(),
-                    labelMap.getOrDefault(box.getId(), List.of()),
-                    msg == null ? "" : msg.getSubject(),
-                    buildPreview(msg),
-                    box.getCreatedAt(),
-                    box.getReadAt(),
-                    box.getSpamReason(),
-                    box.getSpamScore(),
-                    box.getPriorityLevel(),
-                    box.getPriorityScore(),
-                    box.getPriorityReason());
-        }).toList();
-        return new PageResult<>(page.getTotal(), items);
+        return mailListQueryService.listInbox(query);
     }
 
     @Override
     public PageResult<OutboxItemVO> listOutbox(MailListQuery query) {
-        Page<MailUserBox> page = queryBox(query, BOX_OUTBOX, false);
-        if (page.getRecords().isEmpty()) return new PageResult<>(page.getTotal(), List.of());
-        List<Long> mailIds = page.getRecords().stream().map(MailUserBox::getMailId).distinct().toList();
-        Map<Long, MailMessage> msgMap = batchLoadMessages(mailIds);
-        Map<Long, List<PartyVO>> recipientMap = batchLoadRecipients(mailIds, ROLE_TO, ROLE_CC);
-        Map<Long, List<LabelItemVO>> labelMap = batchLoadLabels(
-                page.getRecords().stream().map(MailUserBox::getId).toList());
-        List<OutboxItemVO> items = page.getRecords().stream()
-                .map(box -> {
-                    MailMessage msg = msgMap.get(box.getMailId());
-                    return new OutboxItemVO(
-                            box.getMailId(),
-                            box.getStarFlag() == 1,
-                            msg != null && msg.getHasAttachment() != null && msg.getHasAttachment() == 1,
-                            false,
-                            recipientMap.getOrDefault(box.getMailId(), List.of()),
-                            labelMap.getOrDefault(box.getId(), List.of()),
-                            msg == null ? "" : msg.getSubject(),
-                            msg == null ? box.getCreatedAt() : msg.getSentAt());
-                }).toList();
-        return new PageResult<>(page.getTotal(), items);
+        return mailListQueryService.listOutbox(query);
     }
 
     @Override
     public PageResult<DraftItemVO> listDrafts(MailListQuery query) {
-        Page<MailUserBox> page = queryBox(query, BOX_DRAFT, false);
-        if (page.getRecords().isEmpty()) return new PageResult<>(page.getTotal(), List.of());
-        List<Long> mailIds = page.getRecords().stream().map(MailUserBox::getMailId).distinct().toList();
-        Map<Long, MailMessage> msgMap = batchLoadMessages(mailIds);
-        Map<Long, List<PartyVO>> recipientMap = batchLoadRecipients(mailIds, ROLE_TO, ROLE_CC);
-        Map<Long, List<LabelItemVO>> labelMap = batchLoadLabels(
-                page.getRecords().stream().map(MailUserBox::getId).toList());
-        List<DraftItemVO> items = page.getRecords().stream()
-                .map(box -> {
-            MailMessage msg = msgMap.get(box.getMailId());
-            return new DraftItemVO(
-                    box.getMailId(),
-                    box.getStarFlag() == 1,
-                    msg != null && msg.getHasAttachment() != null && msg.getHasAttachment() == 1,
-                    false,
-                    recipientMap.getOrDefault(box.getMailId(), List.of()),
-                    labelMap.getOrDefault(box.getId(), List.of()),
-                    msg == null ? "" : msg.getSubject(),
-                    msg == null ? box.getCreatedAt() : msg.getCreatedAt(),
-                    msg == null ? box.getUpdatedAt() : msg.getUpdatedAt());
-        }).toList();
-        return new PageResult<>(page.getTotal(), items);
+        return mailListQueryService.listDrafts(query);
     }
 
     @Override
     public PageResult<MailListItemVO> listByMailList(MailListQuery query, Map<String, String> requestParams) {
-        boolean deleted = "true".equalsIgnoreCase(requestParams.get("routeQuery[isDeleted]"))
-                || "true".equalsIgnoreCase(requestParams.get("isDeleted"));
-        if (!deleted) {
-            String labelIdStr = requestParams.getOrDefault("routeQuery[labelId]", requestParams.get("labelId"));
-            if (query.getLabelId() == null && StringUtils.hasText(labelIdStr)) {
-                query.setLabelId(Long.valueOf(labelIdStr));
-            }
-            return listByLabel(query);
-        }
-
-        Long userId = requiredUserId();
-        LambdaQueryWrapper<MailUserBox> wrapper = new LambdaQueryWrapper<MailUserBox>()
-                .eq(MailUserBox::getOwnerUserId, userId)
-                .eq(MailUserBox::getDeletedFlag, 1)
-                .orderByDesc(MailUserBox::getUpdatedAt);
-        applyTrashListFilters(wrapper, query, userId);
-        Page<MailUserBox> page = mailUserBoxMapper.selectPage(new Page<>(query.getPage(), query.getLimit()), wrapper);
-        if (page.getRecords().isEmpty()) {
-            return new PageResult<>(page.getTotal(), List.of());
-        }
-        List<MailListItemVO> items = page.getRecords().stream().map(this::toMailListItem).toList();
-        return new PageResult<>(page.getTotal(), items);
-    }
-
-    /** 按标签查看邮件（未删除） */
-    private PageResult<MailListItemVO> listByLabel(MailListQuery query) {
-        Long userId = requiredUserId();
-        LambdaQueryWrapper<MailUserBox> wrapper = new LambdaQueryWrapper<MailUserBox>()
-                .eq(MailUserBox::getOwnerUserId, userId)
-                .eq(MailUserBox::getDeletedFlag, 0)
-                .orderByDesc(MailUserBox::getUpdatedAt);
-        applyLabelFilter(wrapper, query.getLabelId(), userId);
-        applyTrashListFilters(wrapper, query, userId);
-        Page<MailUserBox> page = mailUserBoxMapper.selectPage(new Page<>(query.getPage(), query.getLimit()), wrapper);
-        if (page.getRecords().isEmpty()) {
-            return new PageResult<>(page.getTotal(), List.of());
-        }
-        List<MailListItemVO> items = page.getRecords().stream().map(this::toMailListItem).toList();
-        return new PageResult<>(page.getTotal(), items);
+        return mailListQueryService.listByMailList(query, requestParams);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MailDetailVO getDetail(Long mailId, String mailType) {
-        Long userId = requiredUserId();
-        String boxType = normalizeBoxType(mailType);
-        MailUserBox box = mailUserBoxMapper.selectOne(new LambdaQueryWrapper<MailUserBox>()
-                .eq(MailUserBox::getMailId, mailId)
-                .eq(MailUserBox::getOwnerUserId, userId)
-                .eq(StringUtils.hasText(boxType), MailUserBox::getBoxType, boxType)
-                .last("limit 1"));
-        if (box == null) {
-            throw new BusinessException(404, "邮件不存在");
-        }
-        if (BOX_INBOX.equals(boxType) && box.getReadFlag() == 0) {
-            box.setReadFlag(1);
-            box.setReadAt(LocalDateTime.now());
-            box.setUpdatedAt(LocalDateTime.now());
-            mailUserBoxMapper.updateById(box);
-        }
-
-        MailMessage message = mailMessageMapper.selectById(mailId);
-        if (message == null) {
-            throw new BusinessException(404, "邮件不存在");
-        }
-        SysUser sender = userMapper.selectById(message.getSenderUserId());
-        List<PartyVO> target = listRecipients(mailId, ROLE_TO);
-        List<PartyVO> copy = listRecipients(mailId, ROLE_CC);
-        List<AttachmentItemVO> attachments = listAttachments(mailId);
-        List<LabelItemVO> labels = listLabels(box.getId());
-        return new MailDetailVO(
-                message.getId(),
-                message.getSubject(),
-                message.getContentHtml(),
-                sender == null ? "未知用户" : sender.getNickname(),
-                sender == null ? "" : sender.getEmail(),
-                box.getCreatedAt(),
-                message.getSentAt(),
-                box.getStarFlag() == 1,
-                target,
-                copy,
-                attachments,
-                List.of(),
-                labels,
-                box.getSpamReason(),
-                box.getSpamScore(),
-                box.getSpamDetectedAt() != null,
-                box.getPriorityLevel(),
-                box.getPriorityScore(),
-                box.getPriorityReason(),
-                box.getPriorityScoredAt() != null
-        );
+        return mailListQueryService.getDetail(mailId, mailType);
     }
 
     @Override
@@ -394,6 +237,7 @@ public class MailServiceImpl implements MailService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteMails(Iterable<Long> mailIds, String boxType) {
         for (Long mailId : mailIds) {
             if (mailId != null) {
@@ -408,6 +252,7 @@ public class MailServiceImpl implements MailService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void undoDeleteMails(Iterable<Long> mailIds, String boxType) {
         for (Long mailId : mailIds) {
             if (mailId != null) {
@@ -425,7 +270,7 @@ public class MailServiceImpl implements MailService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deletePermanently(Iterable<Long> mailIds, String boxType) {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         String normalizedBoxType = normalizeBoxType(boxType);
         for (Long mailId : mailIds) {
             if (mailId == null) {
@@ -438,7 +283,7 @@ public class MailServiceImpl implements MailService {
                     .eq(StringUtils.hasText(normalizedBoxType), MailUserBox::getBoxType, normalizedBoxType)
                     .last("limit 1"));
             if (box == null) {
-                throw new BusinessException(400, "仅可彻底删除回收站中的邮件");
+                throw new BusinessException(400, "?????????????");
             }
             userLabelMapper.delete(new LambdaQueryWrapper<MailUserLabel>()
                     .eq(MailUserLabel::getUserBoxId, box.getId()));
@@ -486,6 +331,7 @@ public class MailServiceImpl implements MailService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void toggleStars(Iterable<Long> mailIds, String boxType) {
         String normalizedBoxType = normalizeBoxType(boxType);
         for (Long mailId : mailIds) {
@@ -498,20 +344,18 @@ public class MailServiceImpl implements MailService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markAllInboxRead() {
-        Long userId = requiredUserId();
-        List<MailUserBox> boxes = mailUserBoxMapper.selectList(new LambdaQueryWrapper<MailUserBox>()
+        Long userId = UserContext.requireUserId();
+        LocalDateTime now = LocalDateTime.now();
+        MailUserBox update = new MailUserBox();
+        update.setReadFlag(1);
+        update.setReadAt(now);
+        update.setUpdatedAt(now);
+        mailUserBoxMapper.update(update, new LambdaQueryWrapper<MailUserBox>()
                 .eq(MailUserBox::getOwnerUserId, userId)
                 .eq(MailUserBox::getBoxType, BOX_INBOX)
                 .eq(MailUserBox::getDeletedFlag, 0)
                 .eq(MailUserBox::getSpamFlag, 0)
                 .eq(MailUserBox::getReadFlag, 0));
-        LocalDateTime now = LocalDateTime.now();
-        for (MailUserBox box : boxes) {
-            box.setReadFlag(1);
-            box.setReadAt(now);
-            box.setUpdatedAt(now);
-            mailUserBoxMapper.updateById(box);
-        }
     }
 
     @Override
@@ -531,7 +375,7 @@ public class MailServiceImpl implements MailService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unmarkSpam(Iterable<Long> mailIds) {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         for (Long mailId : mailIds) {
             if (mailId == null) {
                 continue;
@@ -556,25 +400,12 @@ public class MailServiceImpl implements MailService {
 
     @Override
     public long countUnreadInbox() {
-        Long userId = requiredUserId();
-        Long count = mailUserBoxMapper.selectCount(new LambdaQueryWrapper<MailUserBox>()
-                .eq(MailUserBox::getOwnerUserId, userId)
-                .eq(MailUserBox::getBoxType, BOX_INBOX)
-                .eq(MailUserBox::getDeletedFlag, 0)
-                .eq(MailUserBox::getSpamFlag, 0)
-                .eq(MailUserBox::getReadFlag, 0));
-        return count == null ? 0L : count;
+        return mailListQueryService.countUnreadInbox();
     }
 
     @Override
     public long countSpam() {
-        Long userId = requiredUserId();
-        Long count = mailUserBoxMapper.selectCount(new LambdaQueryWrapper<MailUserBox>()
-                .eq(MailUserBox::getOwnerUserId, userId)
-                .eq(MailUserBox::getBoxType, BOX_INBOX)
-                .eq(MailUserBox::getDeletedFlag, 0)
-                .eq(MailUserBox::getSpamFlag, 1));
-        return count == null ? 0L : count;
+        return mailListQueryService.countSpam();
     }
 
     @Override
@@ -586,14 +417,14 @@ public class MailServiceImpl implements MailService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markLabel(Long labelId, Iterable<Long> mailIds, String boxType) {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         String normalizedBoxType = normalizeBoxType(boxType);
         MailLabel label = labelMapper.selectOne(new LambdaQueryWrapper<MailLabel>()
                 .eq(MailLabel::getId, labelId)
                 .eq(MailLabel::getUserId, userId)
                 .last("limit 1"));
         if (label == null) {
-            throw new BusinessException(404, "标签不存在");
+            throw new BusinessException(404, "?????");
         }
         for (Long mailId : mailIds) {
             if (mailId == null) {
@@ -687,9 +518,9 @@ public class MailServiceImpl implements MailService {
             return;
         }
         SysUser sender = userMapper.selectById(senderUserId);
-        String senderName = sender == null ? "未知发件人" : sender.getNickname();
+        String senderName = sender == null ? "?????" : sender.getNickname();
         String senderMail = sender == null ? "" : sender.getEmail();
-        String title = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "（无主题）";
+        String title = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "?????";
 
         for (PartyRequest item : recipients) {
             Long targetUserId = findUserIdByEmail(item.mail());
@@ -721,7 +552,7 @@ public class MailServiceImpl implements MailService {
     }
 
     private void runAsync(Runnable task) {
-        CompletableFuture.runAsync(task)
+        CompletableFuture.runAsync(task, mailTaskExecutor)
                 .exceptionally(ex -> {
                     log.warn("Post delivery processing failed", ex);
                     return null;
@@ -857,7 +688,7 @@ public class MailServiceImpl implements MailService {
                 continue;
             }
             if (!canUseAttachment(attachment, userId)) {
-                throw new BusinessException(403, "无权使用该附件");
+                throw new BusinessException(403, "???????");
             }
             if (attachment.getMailId() != null && !attachment.getMailId().equals(mailId)) {
                 attachmentService.cloneForMail(attachmentId, mailId, userId);
@@ -882,357 +713,12 @@ public class MailServiceImpl implements MailService {
         return count != null && count > 0;
     }
 
-    private Page<MailUserBox> queryBox(MailListQuery query, String boxType, boolean deleted) {
-        Long userId = requiredUserId();
-        LambdaQueryWrapper<MailUserBox> wrapper = new LambdaQueryWrapper<MailUserBox>()
-                .eq(MailUserBox::getOwnerUserId, userId)
-                .eq(boxType != null, MailUserBox::getBoxType, boxType)
-                .eq(MailUserBox::getDeletedFlag, deleted ? 1 : 0);
-        if (BOX_INBOX.equals(boxType) && (query.getSpam() == null || query.getSpam() != 1)) {
-            wrapper.orderByDesc(MailUserBox::getPriorityScore).orderByDesc(MailUserBox::getUpdatedAt);
-        } else {
-            wrapper.orderByDesc(MailUserBox::getUpdatedAt);
-        }
-        if (BOX_INBOX.equals(boxType)) {
-            if (query.getSpam() != null && query.getSpam() == 1) {
-                wrapper.eq(MailUserBox::getSpamFlag, 1);
-            } else {
-                wrapper.eq(MailUserBox::getSpamFlag, 0);
-            }
-            if (query.getStarred() != null && query.getStarred() == 1) {
-                wrapper.eq(MailUserBox::getStarFlag, 1);
-            }
-            if (query.getStatus() != null) {
-                if (query.getStatus() == 0) {
-                    wrapper.eq(MailUserBox::getReadFlag, 0);
-                } else if (query.getStatus() == 1) {
-                    wrapper.eq(MailUserBox::getReadFlag, 1);
-                }
-            }
-        }
-        applyKeywordFilter(wrapper, query.getTitle());
-        applyLabelFilter(wrapper, query.getLabelId(), userId);
-        if (BOX_INBOX.equals(boxType)) {
-            applyInboxSenderFilter(wrapper, query);
-        } else if (BOX_OUTBOX.equals(boxType) || BOX_DRAFT.equals(boxType)) {
-            applyRecipientFilter(wrapper, query);
-        }
-        return mailUserBoxMapper.selectPage(new Page<>(query.getPage(), query.getLimit()), wrapper);
-    }
-
-    private void applyKeywordFilter(LambdaQueryWrapper<MailUserBox> wrapper, String keyword) {
-        if (!StringUtils.hasText(keyword)) {
-            return;
-        }
-        List<Long> matchingMailIds = mailMessageMapper.selectList(
-                new LambdaQueryWrapper<MailMessage>()
-                        .select(MailMessage::getId)
-                        .and(q -> q.like(MailMessage::getSubject, keyword)
-                                .or()
-                                .like(MailMessage::getContentText, keyword)))
-                .stream().map(MailMessage::getId).toList();
-        if (matchingMailIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getMailId, -1L);
-            return;
-        }
-        wrapper.in(MailUserBox::getMailId, matchingMailIds);
-    }
-
-    private void applyLabelFilter(LambdaQueryWrapper<MailUserBox> wrapper, Long labelId, Long userId) {
-        if (labelId == null) {
-            return;
-        }
-        MailLabel label = labelMapper.selectOne(new LambdaQueryWrapper<MailLabel>()
-                .eq(MailLabel::getId, labelId)
-                .eq(MailLabel::getUserId, userId)
-                .last("limit 1"));
-        if (label == null) {
-            wrapper.eq(MailUserBox::getId, -1L);
-            return;
-        }
-        List<Long> boxIds = userLabelMapper.selectList(new LambdaQueryWrapper<MailUserLabel>()
-                        .eq(MailUserLabel::getLabelId, labelId))
-                .stream().map(MailUserLabel::getUserBoxId).distinct().toList();
-        if (boxIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getId, -1L);
-            return;
-        }
-        wrapper.in(MailUserBox::getId, boxIds);
-    }
-
-    private void applyInboxSenderFilter(LambdaQueryWrapper<MailUserBox> wrapper, MailListQuery query) {
-        String senderMail = StringUtils.hasText(query.getReceiveMail()) ? query.getReceiveMail() : query.getMail();
-        String senderName = StringUtils.hasText(query.getReceiveName()) ? query.getReceiveName() : query.getName();
-        if (!StringUtils.hasText(senderMail) && !StringUtils.hasText(senderName)) {
-            return;
-        }
-        LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(senderMail)) {
-            userWrapper.like(SysUser::getEmail, senderMail);
-        }
-        if (StringUtils.hasText(senderName)) {
-            userWrapper.like(SysUser::getNickname, senderName);
-        }
-        List<Long> senderIds = userMapper.selectList(userWrapper).stream().map(SysUser::getId).toList();
-        if (senderIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getMailId, -1L);
-            return;
-        }
-        List<Long> mailIds = mailMessageMapper.selectList(
-                new LambdaQueryWrapper<MailMessage>()
-                        .select(MailMessage::getId)
-                        .in(MailMessage::getSenderUserId, senderIds))
-                .stream().map(MailMessage::getId).toList();
-        if (mailIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getMailId, -1L);
-            return;
-        }
-        wrapper.in(MailUserBox::getMailId, mailIds);
-    }
-
-    private void applyRecipientFilter(LambdaQueryWrapper<MailUserBox> wrapper, MailListQuery query) {
-        String recipientMail = StringUtils.hasText(query.getReceiveMail()) ? query.getReceiveMail() : query.getMail();
-        String recipientName = StringUtils.hasText(query.getReceiveName()) ? query.getReceiveName() : query.getName();
-        if (!StringUtils.hasText(recipientMail) && !StringUtils.hasText(recipientName)) {
-            return;
-        }
-        LambdaQueryWrapper<MailRecipient> recipientWrapper = new LambdaQueryWrapper<MailRecipient>()
-                .select(MailRecipient::getMailId)
-                .in(MailRecipient::getRecipientType, List.of(ROLE_TO, ROLE_CC));
-        if (StringUtils.hasText(recipientMail)) {
-            recipientWrapper.like(MailRecipient::getRecipientEmail, recipientMail);
-        }
-        if (StringUtils.hasText(recipientName)) {
-            recipientWrapper.like(MailRecipient::getRecipientName, recipientName);
-        }
-        List<Long> mailIds = recipientMapper.selectList(recipientWrapper)
-                .stream().map(MailRecipient::getMailId).distinct().toList();
-        if (mailIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getMailId, -1L);
-            return;
-        }
-        wrapper.in(MailUserBox::getMailId, mailIds);
-    }
-
-    private void applyTrashListFilters(LambdaQueryWrapper<MailUserBox> wrapper, MailListQuery query, Long userId) {
-        applyKeywordFilter(wrapper, query.getTitle());
-        applyLabelFilter(wrapper, query.getLabelId(), userId);
-        if (query.getStatus() != null) {
-            if (query.getStatus() == 0) {
-                wrapper.eq(MailUserBox::getReadFlag, 0);
-            } else if (query.getStatus() == 1) {
-                wrapper.eq(MailUserBox::getReadFlag, 1);
-            }
-        }
-        String senderMail = StringUtils.hasText(query.getReceiveMail()) ? query.getReceiveMail() : query.getMail();
-        String senderName = StringUtils.hasText(query.getReceiveName()) ? query.getReceiveName() : query.getName();
-        if (!StringUtils.hasText(senderMail) && !StringUtils.hasText(senderName)) {
-            return;
-        }
-        LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(senderMail)) {
-            userWrapper.like(SysUser::getEmail, senderMail);
-        }
-        if (StringUtils.hasText(senderName)) {
-            userWrapper.like(SysUser::getNickname, senderName);
-        }
-        List<Long> senderIds = userMapper.selectList(userWrapper).stream().map(SysUser::getId).toList();
-        if (senderIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getMailId, -1L);
-            return;
-        }
-        List<Long> mailIds = mailMessageMapper.selectList(
-                new LambdaQueryWrapper<MailMessage>()
-                        .select(MailMessage::getId)
-                        .in(MailMessage::getSenderUserId, senderIds))
-                .stream().map(MailMessage::getId).toList();
-        if (mailIds.isEmpty()) {
-            wrapper.eq(MailUserBox::getMailId, -1L);
-            return;
-        }
-        wrapper.in(MailUserBox::getMailId, mailIds);
-    }
-
-    private InboxItemVO toInboxItem(MailUserBox box) {
-        MailMessage message = mailMessageMapper.selectById(box.getMailId());
-        SysUser sender = message == null ? null : userMapper.selectById(message.getSenderUserId());
-        return new InboxItemVO(
-                box.getMailId(),
-                box.getStarFlag() == 1,
-                hasAttachment(box.getMailId()),
-                false,
-                box.getReadFlag() == 1 ? 1 : 0,
-                sender == null ? "未知用户" : sender.getNickname(),
-                sender == null ? "" : sender.getEmail(),
-                listLabels(box.getId()),
-                message == null ? "" : message.getSubject(),
-                buildPreview(message),
-                box.getCreatedAt(),
-                box.getReadAt(),
-                box.getSpamReason(),
-                box.getSpamScore(),
-                box.getPriorityLevel(),
-                box.getPriorityScore(),
-                box.getPriorityReason()
-        );
-    }
-
-    private OutboxItemVO toOutboxItem(MailUserBox box) {
-        MailMessage message = mailMessageMapper.selectById(box.getMailId());
-        return new OutboxItemVO(
-                box.getMailId(),
-                box.getStarFlag() == 1,
-                hasAttachment(box.getMailId()),
-                false,
-                listRecipients(box.getMailId(), ROLE_TO, ROLE_CC),
-                listLabels(box.getId()),
-                message == null ? "" : message.getSubject(),
-                message == null ? box.getCreatedAt() : message.getSentAt()
-        );
-    }
-
-    private DraftItemVO toDraftItem(MailUserBox box) {
-        MailMessage message = mailMessageMapper.selectById(box.getMailId());
-        return new DraftItemVO(
-                box.getMailId(),
-                box.getStarFlag() == 1,
-                hasAttachment(box.getMailId()),
-                false,
-                listRecipients(box.getMailId(), ROLE_TO, ROLE_CC),
-                listLabels(box.getId()),
-                message == null ? "" : message.getSubject(),
-                message == null ? box.getCreatedAt() : message.getCreatedAt(),
-                message == null ? box.getUpdatedAt() : message.getUpdatedAt()
-        );
-    }
-
-    private MailListItemVO toMailListItem(MailUserBox box) {
-        MailMessage message = mailMessageMapper.selectById(box.getMailId());
-        SysUser sender = message == null ? null : userMapper.selectById(message.getSenderUserId());
-        String type = BOX_OUTBOX.equals(box.getBoxType()) ? "send" : "receive";
-        LocalDateTime date = message != null && message.getSentAt() != null ? message.getSentAt() : box.getUpdatedAt();
-        return new MailListItemVO(
-                box.getMailId(),
-                box.getStarFlag() == 1,
-                hasAttachment(box.getMailId()),
-                false,
-                type,
-                sender == null ? "未知用户" : sender.getNickname(),
-                sender == null ? "" : sender.getEmail(),
-                listLabels(box.getId()),
-                message == null ? "" : message.getSubject(),
-                date
-        );
-    }
-
-    // ── 批量加载辅助方法（消除 N+1 查询）──────────────────────────────
-
-    private Map<Long, MailMessage> batchLoadMessages(List<Long> mailIds) {
-        if (mailIds.isEmpty()) return Map.of();
-        return mailMessageMapper.selectBatchIds(mailIds)
-                .stream().collect(Collectors.toMap(MailMessage::getId, m -> m));
-    }
-
-    private Map<Long, SysUser> batchLoadSenders(Collection<MailMessage> messages) {
-        List<Long> senderIds = messages.stream()
-                .map(MailMessage::getSenderUserId).filter(Objects::nonNull).distinct().toList();
-        if (senderIds.isEmpty()) return Map.of();
-        return userMapper.selectBatchIds(senderIds)
-                .stream().collect(Collectors.toMap(SysUser::getId, u -> u));
-    }
-
-    private Map<Long, List<LabelItemVO>> batchLoadLabels(List<Long> boxIds) {
-        if (boxIds.isEmpty()) return Map.of();
-        List<MailUserLabel> userLabels = userLabelMapper.selectList(
-                new LambdaQueryWrapper<MailUserLabel>().in(MailUserLabel::getUserBoxId, boxIds));
-        if (userLabels.isEmpty()) return Map.of();
-        List<Long> labelIds = userLabels.stream().map(MailUserLabel::getLabelId).distinct().toList();
-        Map<Long, MailLabel> labelById = labelMapper.selectBatchIds(labelIds)
-                .stream().collect(Collectors.toMap(MailLabel::getId, l -> l));
-        Map<Long, List<LabelItemVO>> result = new HashMap<>();
-        for (MailUserLabel ul : userLabels) {
-            MailLabel label = labelById.get(ul.getLabelId());
-            if (label != null) {
-                result.computeIfAbsent(ul.getUserBoxId(), k -> new ArrayList<>())
-                        .add(new LabelItemVO(String.valueOf(label.getId()), String.valueOf(label.getId()),
-                                label.getName(), label.getColor()));
-            }
-        }
-        return result;
-    }
-
-    private Map<Long, List<PartyVO>> batchLoadRecipients(List<Long> mailIds, String... types) {
-        if (mailIds.isEmpty()) return Map.of();
-        List<String> typeList = List.of(types);
-        List<MailRecipient> recipients = recipientMapper.selectList(
-                new LambdaQueryWrapper<MailRecipient>()
-                        .in(MailRecipient::getMailId, mailIds)
-                        .in(MailRecipient::getRecipientType, typeList));
-        Map<Long, List<PartyVO>> result = new HashMap<>();
-        for (MailRecipient r : recipients) {
-            result.computeIfAbsent(r.getMailId(), k -> new ArrayList<>())
-                    .add(new PartyVO(r.getRecipientName(), r.getRecipientEmail()));
-        }
-        return result;
-    }
-
-    // ─────────────────────────────────────────────────────────────────
-
-    private List<PartyVO> listRecipients(Long mailId, String... types) {
-        List<String> typeList = List.of(types);
-        return recipientMapper.selectList(new LambdaQueryWrapper<MailRecipient>()
-                        .eq(MailRecipient::getMailId, mailId)
-                        .in(MailRecipient::getRecipientType, typeList))
-                .stream()
-                .map(item -> new PartyVO(item.getRecipientName(), item.getRecipientEmail()))
-                .toList();
-    }
-
-    private List<AttachmentItemVO> listAttachments(Long mailId) {
-        return attachmentMapper.selectList(new LambdaQueryWrapper<MailAttachment>()
-                        .eq(MailAttachment::getMailId, mailId))
-                .stream()
-                .map(item -> new AttachmentItemVO(
-                        item.getId(),
-                        item.getOriginalName(),
-                        publicUrlBuilder.attachmentDownloadUrl(item.getId()),
-                        item.getFileSize(),
-                        item.getContentType()))
-                .toList();
-    }
-
-    private List<LabelItemVO> listLabels(Long userBoxId) {
-        List<Long> labelIds = getLabelIds(userBoxId);
-        if (labelIds.isEmpty()) {
-            return List.of();
-        }
-        List<MailLabel> labels = labelMapper.selectList(new LambdaQueryWrapper<MailLabel>()
-                .in(MailLabel::getId, labelIds));
-        return labels.stream()
-                .map(item -> new LabelItemVO(String.valueOf(item.getId()), String.valueOf(item.getId()), item.getName(), item.getColor()))
-                .toList();
-    }
-
-    private List<Long> getLabelIds(Long userBoxId) {
-        return userLabelMapper.selectList(new LambdaQueryWrapper<MailUserLabel>()
-                        .eq(MailUserLabel::getUserBoxId, userBoxId))
-                .stream()
-                .map(MailUserLabel::getLabelId)
-                .toList();
-    }
-
-    private boolean hasAttachment(Long mailId) {
-        Long count = attachmentMapper.selectCount(new LambdaQueryWrapper<MailAttachment>()
-                .eq(MailAttachment::getMailId, mailId));
-        return count != null && count > 0;
-    }
-
     private MailUserBox findBoxByMailId(Long mailId) {
         return findBoxByMailId(mailId, null);
     }
 
     private MailUserBox findBoxByMailId(Long mailId, String boxType) {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         String normalizedBoxType = normalizeBoxType(boxType);
         MailUserBox box = mailUserBoxMapper.selectOne(new LambdaQueryWrapper<MailUserBox>()
                 .eq(MailUserBox::getMailId, mailId)
@@ -1240,7 +726,7 @@ public class MailServiceImpl implements MailService {
                 .eq(StringUtils.hasText(normalizedBoxType), MailUserBox::getBoxType, normalizedBoxType)
                 .last("limit 1"));
         if (box == null) {
-            throw new BusinessException(404, "邮件不存在");
+            throw new BusinessException(404, "?????");
         }
         return box;
     }
@@ -1262,7 +748,7 @@ public class MailServiceImpl implements MailService {
 
     private MailUserBox getOwnedDraftBox(MailMessage message, Long userId) {
         if (message == null) {
-            throw new BusinessException(404, "草稿不存在");
+            throw new BusinessException(404, "?????");
         }
         MailUserBox box = mailUserBoxMapper.selectOne(new LambdaQueryWrapper<MailUserBox>()
                 .eq(MailUserBox::getMailId, message.getId())
@@ -1270,7 +756,7 @@ public class MailServiceImpl implements MailService {
                 .eq(MailUserBox::getBoxType, BOX_DRAFT)
                 .last("limit 1"));
         if (box == null) {
-            throw new BusinessException(403, "无权修改该草稿");
+            throw new BusinessException(403, "???????");
         }
         return box;
     }
@@ -1283,44 +769,10 @@ public class MailServiceImpl implements MailService {
     }
 
     private String normalizeBoxType(String boxType) {
-        if (!StringUtils.hasText(boxType)) {
-            return null;
-        }
-        String value = boxType.trim().toUpperCase();
-        return switch (value) {
-            case BOX_INBOX, "RECEIVE" -> BOX_INBOX;
-            case BOX_OUTBOX, "SEND" -> BOX_OUTBOX;
-            case BOX_DRAFT, "DRAFTBOX" -> BOX_DRAFT;
-            default -> null;
-        };
-    }
-
-    private Long requiredUserId() {
-        Long userId = UserContext.requireUserId();
-        if (userId == null) {
-            throw new BusinessException(401, "未登录");
-        }
-        return userId;
+        return MailBoxUtils.normalizeBoxType(boxType);
     }
 
     private String stripHtml(String html) {
-        return html == null ? "" : html.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
-    }
-
-    private String buildPreview(MailMessage message) {
-        if (message == null) {
-            return "";
-        }
-        String text = StringUtils.hasText(message.getContentText())
-                ? message.getContentText()
-                : stripHtml(message.getContentHtml());
-        if (!StringUtils.hasText(text)) {
-            return "";
-        }
-        return text.length() > 80 ? text.substring(0, 80) + "…" : text;
-    }
-
-    private long toMillis(LocalDateTime time) {
-        return time == null ? 0L : time.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return MailBoxUtils.stripHtml(html);
     }
 }

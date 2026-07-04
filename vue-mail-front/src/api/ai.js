@@ -9,5 +9,6 @@ export const aiConfigApi = {
 export const aiMailApi = {
   summarize: mailId => request.post('/api/ai/mail-summary', { mailId }),
   suggestReplies: (mailId, tone = 'formal') => request.post('/api/ai/reply-suggestions', { mailId, tone }),
-  extractActionItems: mailId => request.post('/api/ai/action-items', { mailId })
+  extractActionItems: mailId => request.post('/api/ai/action-items', { mailId }),
+  chat: (message, mailId) => request.post('/api/ai/chat', { message, mailId: mailId || null })
 };

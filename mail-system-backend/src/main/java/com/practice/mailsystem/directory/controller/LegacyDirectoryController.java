@@ -1,5 +1,6 @@
 package com.practice.mailsystem.directory.controller;
 
+import com.practice.mailsystem.common.ApiResponse;
 import com.practice.mailsystem.common.dto.BatchIdsRequest;
 import com.practice.mailsystem.directory.dto.ContactUpsertRequest;
 import com.practice.mailsystem.directory.dto.GroupUpsertRequest;
@@ -7,6 +8,7 @@ import com.practice.mailsystem.directory.service.DirectoryService;
 import com.practice.mailsystem.mail.dto.LabelUpsertRequest;
 import com.practice.mailsystem.mail.dto.MailListQuery;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,81 +19,84 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * 旧版通讯录/标签路径，响应格式已统一为 {@link ApiResponse}。
+ *
+ * @deprecated 请迁移到 {@link com.practice.mailsystem.directory.controller.DirectoryManageController}（/api/**）。
+ */
+@Deprecated
 @RestController
+@RequiredArgsConstructor
 public class LegacyDirectoryController {
 
     private final DirectoryService directoryService;
 
-    public LegacyDirectoryController(DirectoryService directoryService) {
-        this.directoryService = directoryService;
-    }
-
     @GetMapping("/mail_contacts/list")
-    public Map<String, Object> contacts(MailListQuery query) {
-        return directoryService.listContacts(query);
+    public ApiResponse<Map<String, Object>> contacts(MailListQuery query) {
+        return ApiResponse.ok(directoryService.listContacts(query));
     }
 
     @GetMapping("/mail_group/list")
-    public Map<String, Object> groups() {
-        return directoryService.listGroups();
+    public ApiResponse<Map<String, Object>> groups() {
+        return ApiResponse.ok(directoryService.listGroups());
     }
 
     @GetMapping("/mail_label/list")
-    public Map<String, Object> labels() {
-        return directoryService.listLabels();
+    public ApiResponse<Map<String, Object>> labels() {
+        return ApiResponse.ok(directoryService.listLabels());
     }
 
     @PostMapping("/mail_contacts")
-    public String addContact(@Valid @RequestBody ContactUpsertRequest request) {
+    public ApiResponse<Void> addContact(@Valid @RequestBody ContactUpsertRequest request) {
         directoryService.saveContact(request);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @PutMapping("/mail_contacts/{contactId}")
-    public String updateContact(@PathVariable Long contactId, @Valid @RequestBody ContactUpsertRequest request) {
+    public ApiResponse<Void> updateContact(@PathVariable Long contactId, @Valid @RequestBody ContactUpsertRequest request) {
         directoryService.updateContact(contactId, request);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @PostMapping("/mail_contacts/delete")
-    public String deleteContacts(@Valid @RequestBody BatchIdsRequest request) {
+    public ApiResponse<Void> deleteContacts(@Valid @RequestBody BatchIdsRequest request) {
         directoryService.deleteContacts(request.ids());
-        return "success";
+        return ApiResponse.ok();
     }
 
     @PostMapping("/mail_group")
-    public String addGroup(@Valid @RequestBody GroupUpsertRequest request) {
+    public ApiResponse<Void> addGroup(@Valid @RequestBody GroupUpsertRequest request) {
         directoryService.saveGroup(request);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @PutMapping("/mail_group/{groupId}")
-    public String updateGroup(@PathVariable Long groupId, @Valid @RequestBody GroupUpsertRequest request) {
+    public ApiResponse<Void> updateGroup(@PathVariable Long groupId, @Valid @RequestBody GroupUpsertRequest request) {
         directoryService.updateGroup(groupId, request);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @DeleteMapping("/mail_group/{groupId}")
-    public String deleteGroup(@PathVariable Long groupId) {
+    public ApiResponse<Void> deleteGroup(@PathVariable Long groupId) {
         directoryService.deleteGroup(groupId);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @PostMapping("/mail_label")
-    public String addLabel(@Valid @RequestBody LabelUpsertRequest request) {
+    public ApiResponse<Void> addLabel(@Valid @RequestBody LabelUpsertRequest request) {
         directoryService.saveLabel(request);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @PutMapping("/mail_label/{labelId}")
-    public String updateLabel(@PathVariable Long labelId, @Valid @RequestBody LabelUpsertRequest request) {
+    public ApiResponse<Void> updateLabel(@PathVariable Long labelId, @Valid @RequestBody LabelUpsertRequest request) {
         directoryService.updateLabel(labelId, request);
-        return "success";
+        return ApiResponse.ok();
     }
 
     @DeleteMapping("/mail_label/{labelId}")
-    public String deleteLabel(@PathVariable Long labelId) {
+    public ApiResponse<Void> deleteLabel(@PathVariable Long labelId) {
         directoryService.deleteLabel(labelId);
-        return "success";
+        return ApiResponse.ok();
     }
 }

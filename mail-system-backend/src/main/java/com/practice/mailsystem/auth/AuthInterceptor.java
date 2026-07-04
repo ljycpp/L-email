@@ -4,6 +4,7 @@ import com.practice.mailsystem.common.exception.BusinessException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Set;
@@ -31,22 +32,15 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String token = request.getHeader("X-Token");
-        if (token == null || token.isBlank()) {
-            String authorization = request.getHeader("Authorization");
-            if (authorization != null && authorization.startsWith("Bearer ")) {
-                token = authorization.substring(7);
-            }
-        }
-        if (token == null || token.isBlank()) {
-            if ("/user/info".equals(path) || isAttachmentDownload(path)) {
-                token = request.getParameter("token");
-            }
-        }
-        if (token == null || token.isBlank()) {
+        String token = resolveToken(request);
+        if (!StringUtils.hasText(token)) {
             throw new BusinessException(401, "未登录或登录已过期");
         }
-        UserContext.set(jwtService.parse(token));
+        try {
+            UserContext.set(jwtService.parse(token));
+        } catch (Exception ex) {
+            throw new BusinessException(401, "未登录或登录已过期");
+        }
         return true;
     }
 
@@ -55,7 +49,16 @@ public class AuthInterceptor implements HandlerInterceptor {
         UserContext.clear();
     }
 
-    private boolean isAttachmentDownload(String path) {
-        return path != null && path.startsWith("/api/attachments/") && path.endsWith("/download");
+    /** 仅从 Header 读取 Token，避免 query 参数进入日志/Referer */
+    private String resolveToken(HttpServletRequest request) {
+        String token = request.getHeader("X-Token");
+        if (StringUtils.hasText(token)) {
+            return token.trim();
+        }
+        String authorization = request.getHeader("Authorization");
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            return authorization.substring(7).trim();
+        }
+        return null;
     }
 }

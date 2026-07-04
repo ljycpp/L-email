@@ -14,12 +14,13 @@ export const useUserStore = defineStore('user', {
   }),
   actions: {
     async login(email, password) {
+      this.reset();
       const { data } = await loginByEmail(email, password);
       this.token = data.token;
       Cookies.set(TOKEN_KEY, data.token);
     },
     async fetchProfile() {
-      const { data } = await getInfo(this.token);
+      const { data } = await getInfo();
       this.name = data.name;
       this.email = data.email || '';
       this.avatar = data.avatar;

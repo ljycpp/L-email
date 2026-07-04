@@ -21,4 +21,6 @@ public interface AiProvider {
                                         String content,
                                         String apiKey,
                                         String modelName);
+
+    String chat(String userMessage, String mailContext, String apiKey, String modelName);
 }

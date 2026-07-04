@@ -99,6 +99,18 @@ public class VveAiProvider implements AiProvider {
         return parsePriorityResult(result);
     }
 
+    @Override
+    public String chat(String userMessage, String mailContext, String apiKey, String modelName) {
+        boolean hasContext = mailContext != null && !mailContext.isBlank();
+        return executePrompt(
+                apiKey,
+                modelName,
+                AiPromptBuilder.chatSystemPrompt(hasContext),
+                AiPromptBuilder.chatUserPrompt(userMessage, mailContext),
+                0.7
+        );
+    }
+
     private String executePrompt(String apiKey,
                                  String modelName,
                                  String systemPrompt,

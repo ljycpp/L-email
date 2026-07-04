@@ -54,9 +54,10 @@ if (Test-LocalPortOpen -Port 8080) {
 } else {
     Write-Host "==> Launching backend service..." -ForegroundColor Yellow
     Start-Process -FilePath $windowsPowerShell -WorkingDirectory $projectRoot -ArgumentList @(
+        "-NoExit",
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $scriptDir "start-backend.ps1")
-    ) -NoNewWindow
+    )
 }
 
 Start-Sleep -Seconds 3
@@ -66,9 +67,10 @@ if (Test-LocalPortOpen -Port 8081) {
 } else {
     Write-Host "==> Launching frontend dev server..." -ForegroundColor Yellow
     Start-Process -FilePath $windowsPowerShell -WorkingDirectory $projectRoot -ArgumentList @(
+        "-NoExit",
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $scriptDir "start-frontend.ps1")
-    ) -NoNewWindow
+    )
 }
 
 Write-Host ""

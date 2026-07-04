@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ConstraintViolation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -27,6 +28,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
         return ResponseEntity.status(resolveStatus(ex.getCode()))
                 .body(ApiResponse.fail(ex.getCode(), ex.getMessage()));
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseBody
+    public ApiResponse<Void> handleDuplicateKey(DuplicateKeyException ex) {
+        return ApiResponse.fail(409, "数据已存在，请勿重复提交");
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

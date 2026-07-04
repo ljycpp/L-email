@@ -52,5 +52,16 @@ Get-Process java, javaw -ErrorAction SilentlyContinue |
 
 Start-Sleep -Milliseconds 800
 
+Write-Host "==> Building backend jar..." -ForegroundColor Cyan
+& $mavenCmd -gs maven-settings.xml -DskipTests package
+if ($LASTEXITCODE -ne 0) {
+    throw "Backend package failed."
+}
+
+$jarPath = Join-Path $backendDir "target\mail-system-backend-0.0.1-SNAPSHOT.jar"
+if (-not (Test-Path $jarPath)) {
+    throw "Backend jar not found: $jarPath"
+}
+
 Write-Host "==> Starting backend service at http://localhost:8080" -ForegroundColor Green
-& $mavenCmd -gs maven-settings.xml clean spring-boot:run
+& $javaExe -jar $jarPath

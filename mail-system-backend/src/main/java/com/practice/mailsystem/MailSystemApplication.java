@@ -21,7 +21,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         JwtProperties.class,
         MailSystemProperties.class,
         AiProperties.class,
-        SpamDetectorProperties.class
+        SpamDetectorProperties.class,
+        com.practice.mailsystem.config.CorsProperties.class
 })
 public class MailSystemApplication {
 

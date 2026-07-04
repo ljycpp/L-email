@@ -69,13 +69,13 @@ public class DirectoryServiceImpl implements DirectoryService {
 
     @Override
     public Map<String, Object> listContactsByGroup(Long groupId) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         MailContactGroup group = groupMapper.selectOne(new LambdaQueryWrapper<MailContactGroup>()
                 .eq(MailContactGroup::getId, groupId)
                 .eq(MailContactGroup::getOwnerUserId, userId)
                 .last("limit 1"));
         if (group == null) {
-            throw new BusinessException(404, "分组不存在");
+            throw new BusinessException(404, "?????");
         }
         List<MailContact> contacts = contactMapper.selectList(new LambdaQueryWrapper<MailContact>()
                 .eq(MailContact::getOwnerUserId, userId)
@@ -135,7 +135,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long saveContact(ContactUpsertRequest request) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         ensureContactEmailUnique(userId, request.mail(), null);
         MailContact contact = new MailContact();
         contact.setOwnerUserId(userId);
@@ -153,7 +153,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long updateContact(Long contactId, ContactUpsertRequest request) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         MailContact contact = getOwnedContact(contactId, userId);
         ensureContactEmailUnique(userId, request.mail(), contactId);
         contact.setGroupId(request.groupId());
@@ -169,7 +169,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteContacts(List<Long> ids) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         for (Long id : ids) {
             MailContact contact = getOwnedContact(id, userId);
             contactMapper.deleteById(contact.getId());
@@ -179,7 +179,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long saveGroup(GroupUpsertRequest request) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         String groupName = normalizeName(request.name());
         ensureGroupNameUnique(userId, groupName, null);
         MailContactGroup group = new MailContactGroup();
@@ -194,7 +194,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long updateGroup(Long groupId, GroupUpsertRequest request) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         MailContactGroup group = getOwnedGroup(groupId, userId);
         String groupName = normalizeName(request.name());
         ensureGroupNameUnique(userId, groupName, groupId);
@@ -211,7 +211,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteGroup(Long groupId) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         MailContactGroup group = getOwnedGroup(groupId, userId);
         contactMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MailContact>()
                 .eq(MailContact::getOwnerUserId, userId)
@@ -223,7 +223,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long saveLabel(LabelUpsertRequest request) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         String labelName = normalizeName(request.name());
         ensureLabelNameUnique(userId, labelName, null);
         MailLabel label = new MailLabel();
@@ -238,7 +238,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long updateLabel(Long labelId, LabelUpsertRequest request) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         MailLabel label = getOwnedLabel(labelId, userId);
         String labelName = normalizeName(request.name());
         ensureLabelNameUnique(userId, labelName, labelId);
@@ -251,7 +251,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteLabel(Long labelId) {
-        Long userId = requireUserId();
+        Long userId = UserContext.requireUserId();
         MailLabel label = getOwnedLabel(labelId, userId);
         userLabelMapper.delete(new LambdaQueryWrapper<MailUserLabel>()
                 .eq(MailUserLabel::getLabelId, labelId));
@@ -281,7 +281,7 @@ public class DirectoryServiceImpl implements DirectoryService {
                 .eq(MailContact::getOwnerUserId, userId)
                 .last("limit 1"));
         if (contact == null) {
-            throw new BusinessException(404, "联系人不存在");
+            throw new BusinessException(404, "??????");
         }
         return contact;
     }
@@ -292,7 +292,7 @@ public class DirectoryServiceImpl implements DirectoryService {
                 .eq(MailContactGroup::getOwnerUserId, userId)
                 .last("limit 1"));
         if (group == null) {
-            throw new BusinessException(404, "分组不存在");
+            throw new BusinessException(404, "?????");
         }
         return group;
     }
@@ -303,7 +303,7 @@ public class DirectoryServiceImpl implements DirectoryService {
                 .eq(MailLabel::getUserId, userId)
                 .last("limit 1"));
         if (label == null) {
-            throw new BusinessException(404, "标签不存在");
+            throw new BusinessException(404, "?????");
         }
         return label;
     }
@@ -317,7 +317,7 @@ public class DirectoryServiceImpl implements DirectoryService {
         }
         Long count = contactMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BusinessException(409, "联系人邮箱已存在");
+            throw new BusinessException(409, "????????");
         }
     }
 
@@ -330,7 +330,7 @@ public class DirectoryServiceImpl implements DirectoryService {
                 continue;
             }
             if (normalizedName.equalsIgnoreCase(normalizeName(group.getGroupName()))) {
-                throw new BusinessException(409, "分组名称已存在");
+                throw new BusinessException(409, "???????");
             }
         }
     }
@@ -344,21 +344,13 @@ public class DirectoryServiceImpl implements DirectoryService {
                 continue;
             }
             if (normalizedName.equalsIgnoreCase(normalizeName(label.getName()))) {
-                throw new BusinessException(409, "标签名称已存在");
+                throw new BusinessException(409, "???????");
             }
         }
     }
 
     private String normalizeName(String name) {
         return name == null ? "" : name.trim();
-    }
-
-    private Long requireUserId() {
-        Long userId = UserContext.requireUserId();
-        if (userId == null) {
-            throw new BusinessException(401, "未登录");
-        }
-        return userId;
     }
 
     private String defaultAvatar() {

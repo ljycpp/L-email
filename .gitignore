@@ -36,6 +36,7 @@ vue-mail-front/dist/
 vue-mail-front/.vite/
 
 # Runtime / cache
+.run-logs/
 tmp/
 temp/
 *.tmp

@@ -15,6 +15,7 @@ import com.practice.mailsystem.user.mapper.SysUserMapper;
 import com.practice.mailsystem.user.service.UserService;
 import com.practice.mailsystem.user.vo.LoginResponse;
 import com.practice.mailsystem.user.vo.UserInfoResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private static final Pattern LOCAL_MAILBOX = Pattern.compile("^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,62}[a-zA-Z0-9])?$");
@@ -35,15 +37,9 @@ public class UserServiceImpl implements UserService {
     private final JwtService jwtService;
     private final MailLabelMapper labelMapper;
     private final MailSystemProperties mailSystemProperties;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(SysUserMapper sysUserMapper, JwtService jwtService, MailLabelMapper labelMapper,
-                           MailSystemProperties mailSystemProperties) {
-        this.sysUserMapper = sysUserMapper;
-        this.jwtService = jwtService;
-        this.labelMapper = labelMapper;
-        this.mailSystemProperties = mailSystemProperties;
-    }
+    // ─────────────────────────────────────────────────────────────────────
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -51,6 +47,9 @@ public class UserServiceImpl implements UserService {
         SysUser user = findUserForLogin(email);
         if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BusinessException(401, "邮箱或密码错误");
+        }
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException(403, "账号已被禁用，请联系管理员");
         }
         String token = jwtService.generateToken(user.getId(), user.getEmail());
         return new LoginResponse(token);
@@ -70,7 +69,7 @@ public class UserServiceImpl implements UserService {
         user.setNickname(request.nickname());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setAvatarUrl("https://dummyimage.com/100x100/4f86f7/ffffff&text=U");
-        user.setIntroduction("L邮箱用户");
+        user.setIntroduction("");
         user.setStatus(1);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -100,8 +99,11 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserInfoResponse toUserInfo(SysUser user) {
+        List<String> roles = (user.getRoleName() != null && !user.getRoleName().isBlank())
+                ? List.of(user.getRoleName())
+                : List.of();
         return new UserInfoResponse(
-                List.of("admin"),
+                roles,
                 user.getNickname(),
                 user.getAvatarUrl(),
                 user.getId(),

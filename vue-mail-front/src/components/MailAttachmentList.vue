@@ -5,11 +5,9 @@
       <a
         v-for="file in files"
         :key="file.id || file.url"
-        :href="buildAttachmentHref(file)"
-        target="_blank"
-        rel="noopener noreferrer"
+        href="#"
         class="mail-attachment-item"
-        @click.stop
+        @click.prevent="handleDownload(file)"
       >
         <el-icon><Document /></el-icon>
         <span class="name">{{ file.name }}</span>
@@ -21,13 +19,22 @@
 
 <script setup>
 import { Document } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
 import { formatFileSize } from '@/utils/format';
-import { buildAttachmentHref } from '@/utils/attachment';
+import { downloadAttachment } from '@/utils/attachment';
 
 defineProps({
   files: { type: Array, default: () => [] },
   title: { type: String, default: '附件' }
 });
+
+async function handleDownload(file) {
+  try {
+    await downloadAttachment(file);
+  } catch {
+    ElMessage.error('附件下载失败，请稍后重试');
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -60,6 +67,7 @@ defineProps({
   text-decoration: none;
   font-size: 13px;
   transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
 
   &:hover {
     border-color: #409eff;

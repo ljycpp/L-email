@@ -1,0 +1,6 @@
+# 本地开发配置：仅 dev profile 启用内置密钥（生产环境请设置 APP_JWT_SECRET / APP_AI_SECRET_KEY）
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:l-email-dev-jwt-secret-2026-safe-minimum-32}
+  ai:
+    secret-key: ${APP_AI_SECRET_KEY:l-email-ai-secret-key-2026-32!!!}

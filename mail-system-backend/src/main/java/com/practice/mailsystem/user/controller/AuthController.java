@@ -1,6 +1,5 @@
 package com.practice.mailsystem.user.controller;
 
-import com.practice.mailsystem.auth.LoginUser;
 import com.practice.mailsystem.auth.UserContext;
 import com.practice.mailsystem.common.ApiResponse;
 import com.practice.mailsystem.user.dto.LoginRequest;
@@ -10,21 +9,21 @@ import com.practice.mailsystem.user.service.UserService;
 import com.practice.mailsystem.user.vo.LoginResponse;
 import com.practice.mailsystem.user.vo.UserInfoResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 用户认证与个人信息 REST API
+ */
 @RestController
+@RequiredArgsConstructor
 public class AuthController {
 
     private final UserService userService;
-
-    public AuthController(UserService userService) {
-        this.userService = userService;
-    }
 
     @PostMapping("/api/auth/register")
     public ApiResponse<Void> register(@Valid @RequestBody RegisterRequest request) {
@@ -45,26 +44,5 @@ public class AuthController {
     @PutMapping("/api/users/me")
     public ApiResponse<UserInfoResponse> updateMe(@Valid @RequestBody ProfileUpdateRequest request) {
         return ApiResponse.ok(userService.updateProfile(UserContext.get(), request));
-    }
-
-    @PostMapping("/login/loginbyemail")
-    public LoginResponse legacyLogin(@Valid @RequestBody LoginRequest request) {
-        return userService.login(request);
-    }
-
-    @PostMapping("/login/logout")
-    public String legacyLogout() {
-        return "success";
-    }
-
-    @GetMapping("/user/info")
-    public UserInfoResponse legacyUserInfo() {
-        LoginUser loginUser = UserContext.get();
-        return userService.getUserInfo(loginUser);
-    }
-
-    @PutMapping("/user/info")
-    public UserInfoResponse legacyUpdateUserInfo(@Valid @RequestBody ProfileUpdateRequest request) {
-        return userService.updateProfile(UserContext.get(), request);
     }
 }

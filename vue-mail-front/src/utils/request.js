@@ -13,13 +13,19 @@ service.interceptors.request.use(
   config => {
     NProgress.start();
     const userStore = useUserStore();
-    if (userStore.token) {
+    const publicPaths = ['/login/loginbyemail', '/login/logout', '/api/auth/login', '/api/auth/register'];
+    if (userStore.token && !publicPaths.includes(config.url)) {
       config.headers['X-Token'] = userStore.token;
     }
     return config;
   },
   error => {
     NProgress.done();
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      const userStore = useUserStore();
+      userStore.reset();
+      router.push('/login');
+    }
     return Promise.reject(error);
   }
 );

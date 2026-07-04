@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: mail-system-backend
+  profiles:
+    active: dev
   datasource:
     url: jdbc:mysql://localhost:3306/mail_system?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
@@ -24,7 +26,6 @@ mybatis-plus:
   global-config:
     banner: false
 
-# L 邮箱：注册与默认登录账号必须使用此后缀；修改时请同步 vue-mail-front 的 VITE_MAIL_EMAIL_DOMAIN
 mail-system:
   email-domain: lmailbox.com
 
@@ -32,18 +33,33 @@ app:
   public-base-url: http://localhost:8080
   jwt:
     issuer: mail-system-backend
-    secret: ${APP_JWT_SECRET:l-email-dev-jwt-secret-2026-safe-minimum-32}
+    secret: ${APP_JWT_SECRET:}
     expire-hours: 24
   ai:
     vveai-chat-url: https://api.vveai.com/v1/chat/completions
     connect-timeout-seconds: 5
     read-timeout-seconds: 20
     max-content-length: 4000
-    secret-key: ${APP_AI_SECRET_KEY:l-email-ai-secret-key-2026-32!!!}
+    secret-key: ${APP_AI_SECRET_KEY:}
   storage:
     root-path: D:/mail-system-storage/attachments
   data:
     initialize-demo-data: true
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:8081
+      - http://localhost:8080
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Token
 
 spam-detector:
   enabled: true

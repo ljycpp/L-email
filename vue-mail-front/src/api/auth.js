@@ -12,8 +12,8 @@ export function logout() {
   return request.post('/login/logout');
 }
 
-export function getInfo(token) {
-  return request.get('/user/info', { params: { token } });
+export function getInfo() {
+  return request.get('/user/info');
 }
 
 export function updateInfo(data) {

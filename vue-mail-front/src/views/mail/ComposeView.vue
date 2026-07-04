@@ -55,6 +55,10 @@
         <el-input v-model="mail.title" class="row-control" placeholder="请输入邮件主题" clearable />
       </div>
 
+      <div class="compose-editor">
+        <QuillEditor ref="editorRef" v-model:content="mail.content" content-type="html" theme="snow" :options="editorOptions" />
+      </div>
+
       <div v-if="fileList.length" class="compose-attachments">
         <span class="attach-label">附件</span>
         <div class="attach-panel">
@@ -62,17 +66,13 @@
           <div class="attach-list">
             <div v-for="file in fileList" :key="file.uid" class="attach-item">
               <el-icon><Document /></el-icon>
-              <a v-if="file.url" :href="buildAttachmentHref(file)" target="_blank" rel="noopener noreferrer" class="attach-name attach-link" @click.stop>{{ file.name }}</a>
+              <a v-if="file.url" href="#" class="attach-name attach-link" @click.prevent="downloadExistingAttachment(file)">{{ file.name }}</a>
               <span v-else class="attach-name">{{ file.name }}</span>
               <span class="attach-size">{{ formatFileSize(file.size || 0) }}</span>
               <el-icon class="attach-remove" @click="removeFile(file)"><Close /></el-icon>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="compose-editor">
-        <QuillEditor ref="editorRef" v-model:content="mail.content" content-type="html" theme="snow" :options="editorOptions" />
       </div>
 
       <div class="compose-footer">发件人：{{ userStore.name || '当前用户' }}</div>
@@ -92,7 +92,7 @@ import { useMailStore } from '@/stores/mail';
 import { useUserStore } from '@/stores/user';
 import { formatFileSize, formatTime, isEmail } from '@/utils/format';
 import { resolveApiUrl } from '@/utils/url';
-import { buildAttachmentHref } from '@/utils/attachment';
+import { downloadAttachment } from '@/utils/attachment';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'msi', 'jar', 'com', 'scr'];
@@ -392,6 +392,14 @@ async function uploadFile(options) {
 function removeFile(file) {
   attachmentIds.value = attachmentIds.value.filter(id => id !== file.id);
   fileList.value = fileList.value.filter(item => item.uid !== file.uid);
+}
+
+async function downloadExistingAttachment(file) {
+  try {
+    await downloadAttachment(file);
+  } catch {
+    ElMessage.error('附件下载失败，请稍后重试');
+  }
 }
 
 function buildFormData(includeDraftId) {

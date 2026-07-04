@@ -53,22 +53,22 @@ public class MailPriorityAutoService {
     }
 
     public PriorityAutoFilterStatusVO getStatus() {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         return new PriorityAutoFilterStatusVO(isAutoPriorityEnabled(userId), isAiConfigured(userId));
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void enable() {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(404, "?????");
         }
         if (!isAiConfigured(userId)) {
-            throw new BusinessException(400, "请先在 AI 设置中配置并启用接入密钥");
+            throw new BusinessException(400, "??? AI ????????????");
         }
         UserAiConfig config = findEnabledConfig(userId)
-                .orElseThrow(() -> new BusinessException(400, "请先在 AI 设置中配置并启用接入密钥"));
+                .orElseThrow(() -> new BusinessException(400, "??? AI ????????????"));
         aiProvider.testConnection(aiApiKeyCipher.decrypt(config.getApiKeyEncrypted()), config.getModelName());
         user.setAutoPriorityFilter(1);
         user.setUpdatedAt(LocalDateTime.now());
@@ -77,10 +77,10 @@ public class MailPriorityAutoService {
 
     @Transactional(rollbackFor = Exception.class)
     public void disable() {
-        Long userId = requiredUserId();
+        Long userId = UserContext.requireUserId();
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(404, "?????");
         }
         user.setAutoPriorityFilter(0);
         user.setUpdatedAt(LocalDateTime.now());
@@ -113,7 +113,7 @@ public class MailPriorityAutoService {
         String apiKey = aiApiKeyCipher.decrypt(config.getApiKeyEncrypted());
         String modelName = config.getModelName();
 
-        String subject = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "（无主题）";
+        String subject = StringUtils.hasText(message.getSubject()) ? message.getSubject() : "?????";
         String body = truncate(resolveBodyText(message));
 
         try {
@@ -151,7 +151,7 @@ public class MailPriorityAutoService {
         }
         String level = normalizeLevel(result.level());
         double score = clampScore(result.score());
-        String reason = StringUtils.hasText(result.reason()) ? result.reason().trim() : "系统已评估邮件优先级";
+        String reason = StringUtils.hasText(result.reason()) ? result.reason().trim() : "??????????";
         if (reason.length() > 500) {
             reason = reason.substring(0, 500);
         }
@@ -213,13 +213,5 @@ public class MailPriorityAutoService {
         }
         int maxLength = Math.max(aiProperties.maxContentLength(), 500);
         return value.length() > maxLength ? value.substring(0, maxLength) : value;
-    }
-
-    private Long requiredUserId() {
-        Long userId = UserContext.requireUserId();
-        if (userId == null) {
-            throw new BusinessException(401, "未登录");
-        }
-        return userId;
     }
 }

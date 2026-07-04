@@ -41,7 +41,7 @@ public class DemoDataInitializer implements ApplicationRunner {
     private final MailContactMapper contactMapper;
     private final MailContactGroupMapper contactGroupMapper;
     private final MailSystemProperties mailSystemProperties;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Value("${app.data.initialize-demo-data:true}")
     private boolean initializeDemoData;
@@ -54,7 +54,8 @@ public class DemoDataInitializer implements ApplicationRunner {
                                MailUserLabelMapper userLabelMapper,
                                MailContactMapper contactMapper,
                                MailContactGroupMapper contactGroupMapper,
-                               MailSystemProperties mailSystemProperties) {
+                               MailSystemProperties mailSystemProperties,
+                               BCryptPasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
         this.labelMapper = labelMapper;
         this.mailMessageMapper = mailMessageMapper;
@@ -64,6 +65,7 @@ public class DemoDataInitializer implements ApplicationRunner {
         this.contactMapper = contactMapper;
         this.contactGroupMapper = contactGroupMapper;
         this.mailSystemProperties = mailSystemProperties;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override

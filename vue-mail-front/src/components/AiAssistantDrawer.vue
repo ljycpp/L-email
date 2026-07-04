@@ -8,7 +8,7 @@
         </div>
         <div class="header-title-area">
           <h3>智能助手</h3>
-          <p class="assistant-subtitle">可对当前邮件生成摘要、提取待办并提供回复建议。</p>
+          <p class="assistant-subtitle">像 GPT 一样自由对话，也可对邮件生成摘要、提取待办或提供回复建议。</p>
         </div>
         <div class="header-actions">
           <el-button text size="small" @click="goSettings">设置</el-button>
@@ -148,12 +148,12 @@
           type="textarea"
           :rows="3"
           resize="none"
-          placeholder="例如：总结这封邮件 / 提取待办 / 给我一版礼貌回复"
+          placeholder="随意提问，或输入：总结这封邮件 / 提取待办 / 给我一版礼貌回复"
           @keyup.ctrl.enter="submitPrompt"
         />
         <div class="composer-actions">
           <span class="composer-tip">Ctrl + Enter 发送</span>
-          <el-button type="primary" :disabled="!currentMail.id || loading" @click="submitPrompt">发送</el-button>
+          <el-button type="primary" :disabled="!configured || loading" @click="submitPrompt">发送</el-button>
         </div>
       </div>
     </div>
@@ -252,14 +252,10 @@ async function runPendingAction() {
 }
 
 function resetConversation() {
-  messages.value = [
-    createMessage(
-      'assistant',
-      currentMail.value.id
-        ? `已连接到“${currentMail.value.title || '未命名邮件'}”。我可以为你生成摘要、提取待办或提供回复建议。`
-        : '请先选择一封邮件，再打开智能助手。'
-    )
-  ];
+  const greeting = currentMail.value.id
+    ? `你好！我已连接到邮件「${currentMail.value.title || '未命名邮件'}」，可以像 ChatGPT 一样自由对话，也可点击上方快捷按钮生成摘要、提取待办或获取回复建议。`
+    : '你好！我是你的邮件智能助手，可以像 ChatGPT 一样自由对话。随意提问，选择邮件后还可一键生成摘要和回复建议。';
+  messages.value = [createMessage('assistant', greeting)];
   draftPrompt.value = '';
 }
 
@@ -356,31 +352,36 @@ async function runReplySuggestions(includePrompt = true) {
 async function submitPrompt() {
   const prompt = draftPrompt.value.trim();
   if (!prompt) return;
+  if (!configured.value) {
+    messages.value.push(createMessage('assistant', '请先在 AI 设置中配置接入密钥和模型名称，才能使用智能助手。'));
+    return;
+  }
   messages.value.push(createMessage('user', prompt));
   draftPrompt.value = '';
 
-  if (!currentMail.value.id) {
-    messages.value.push(createMessage('assistant', '请先选择一封邮件。'));
-    return;
-  }
-  if (!configured.value) {
-    messages.value.push(createMessage('assistant', '请先在 AI 设置中配置接入密钥和模型名称。'));
-    return;
-  }
-
   const normalized = prompt.toLowerCase();
-  if (['summary', 'summarize', 'key points', '摘要', '总结'].some(item => normalized.includes(item) || prompt.includes(item))) {
-    return runSummary(false);
-  }
-  if (['todo', 'task', 'deadline', 'contact', 'action item', '待办', '任务', '截止', '联系人'].some(item => normalized.includes(item) || prompt.includes(item))) {
-    return runActionItems(false);
-  }
-  if (['reply', 'response', '回复', '回信'].some(item => normalized.includes(item) || prompt.includes(item))) {
-    updateToneByPrompt(normalized, prompt);
-    return runReplySuggestions(false);
+  if (currentMail.value.id) {
+    if (['summary', 'summarize', 'key points', '摘要', '总结', '概括'].some(kw => normalized.includes(kw) || prompt.includes(kw))) {
+      return runSummary(false);
+    }
+    if (['todo', 'task', 'deadline', 'contact', 'action item', '待办', '任务', '截止', '联系人'].some(kw => normalized.includes(kw) || prompt.includes(kw))) {
+      return runActionItems(false);
+    }
+    if (['reply', 'response', '回复', '回信', '回邮件'].some(kw => normalized.includes(kw) || prompt.includes(kw))) {
+      updateToneByPrompt(normalized, prompt);
+      return runReplySuggestions(false);
+    }
   }
 
-  messages.value.push(createMessage('assistant', '当前支持：邮件摘要、待办提取、回复建议。'));
+  loading.value = true;
+  try {
+    const { data } = await aiMailApi.chat(prompt, currentMail.value.id || null);
+    messages.value.push(createMessage('assistant', data.reply || '未收到回复，请重试。'));
+  } catch (err) {
+    messages.value.push(createMessage('assistant', normalizeAiError(err, '对话')));
+  } finally {
+    loading.value = false;
+  }
 }
 
 function updateToneByPrompt(normalizedPrompt, originalPrompt) {

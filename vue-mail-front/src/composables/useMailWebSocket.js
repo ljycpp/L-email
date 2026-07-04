@@ -84,21 +84,26 @@ export function useMailWebSocket() {
     }
   }
 
-  function connectSocket() {
+  async function connectSocket() {
     if (!userStore.token || socket?.readyState === WebSocket.OPEN) {
       return;
     }
     disconnectMailWebSocket();
-    const ws = new WebSocket(buildMailSocketUrl(userStore.token));
-    ws.onmessage = handleSocketMessage;
-    ws.onclose = () => {
-      socket = null;
+    try {
+      const wsUrl = await buildMailSocketUrl();
+      const ws = new WebSocket(wsUrl);
+      ws.onmessage = handleSocketMessage;
+      ws.onclose = () => {
+        socket = null;
+        scheduleReconnect();
+      };
+      ws.onerror = () => {
+        ws.close();
+      };
+      socket = ws;
+    } catch {
       scheduleReconnect();
-    };
-    ws.onerror = () => {
-      ws.close();
-    };
-    socket = ws;
+    }
   }
 
   function requestNotificationPermission() {
